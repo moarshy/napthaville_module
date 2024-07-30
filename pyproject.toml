@@ -1,0 +1,20 @@
+[tool.poetry]
+name = "napthaville_module"
+version = "0.1.0"
+description = ""
+authors = ["Mohamed Arshath <marshath@gmail.com>"]
+readme = "README.md"
+packages = [
+    {include = "napthaville", from="."},
+    {include = "napthaville_module", from ="."}
+]
+
+[tool.poetry.dependencies]
+python = "^3.12"
+pydantic = "^2.8.2"
+numpy = "^2.0.1"
+openai = "^1.37.1"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
