@@ -1,3 +1,4 @@
+import os 
 import json
 import logging
 from napthaville_module.schemas import InputSchema
@@ -9,6 +10,7 @@ from napthaville.persona.cognitive_modules.converse import (
 )
 from napthaville.maze import Maze
 
+
 def get_logger():
     logger = logging.getLogger(__name__)
     logger.setLevel(logging.INFO)
@@ -19,7 +21,12 @@ def get_logger():
     logger.addHandler(ch)
     return logger
 
+
 logger = get_logger()
+
+
+BASE_OUTPUT_DIR = os.getenv("BASE_OUTPUT_DIR", None)
+PERSONAS_FOLDER = f"{BASE_OUTPUT_DIR}/napthaville_personas"
 
 
 ALL_PERSONAS = [
@@ -37,8 +44,6 @@ def _check_persona(persona_name: str):
 
 def get_personal_info(task_params: dict):
     persona_name = task_params["persona_name"]
-    persona_folder = task_params['persona_folder']
-
     exists = _check_persona(persona_name)
 
     if not exists:
@@ -47,7 +52,7 @@ def get_personal_info(task_params: dict):
         }
     
     else:
-        personals_folder = f"{persona_folder}/{persona_name}"
+        personals_folder = f"{PERSONAS_FOLDER}/{persona_name}"
         persona = Persona(persona_name, personals_folder)
         name = persona.scratch.name
         act_description = persona.scratch.act_description
@@ -59,7 +64,6 @@ def get_personal_info(task_params: dict):
 
 
 def get_utterence(task_params: dict):
-    # check if init persona exists
     exists = _check_persona(task_params['init_persona_name'])
 
     if not exists:
@@ -68,7 +72,7 @@ def get_utterence(task_params: dict):
         } 
         return json.dumps(res)
 
-    persona_folder = f"{task_params['init_persona_folder']}/{task_params['init_persona_name']}"
+    persona_folder = f"{PERSONAS_FOLDER}/{task_params['init_persona_name']}"
     init_persona = Persona(task_params["init_persona_name"], persona_folder)
     target_persona_name = task_params["target_persona_name"]
     target_persona_description = task_params["target_persona_description"]
@@ -120,6 +124,8 @@ def get_utterence(task_params: dict):
 
 
 def run(inputs: InputSchema, worker_nodes = None, orchestrator_node = None, flow_run = None, cfg: dict = None):
+    if BASE_OUTPUT_DIR is None:
+        return json.dumps({"error": "BASE_OUTPUT_DIR is not set"})
     logger.info(f"Running task {inputs.task} with params {inputs.task_params}")
 
     task = inputs.task
@@ -145,7 +151,7 @@ if __name__ == "__main__":
         "task": "get_personal_info",
         "task_params": {
             "persona_name": "Isabella Rodriguez",
-            "persona_folder": "/Users/arshath/play/playground/gen_agents/storage_and_statics/storage/July1_the_ville_isabella_maria_klaus-step-3-1/personas"
+            # "persona_folder": "/Users/arshath/play/playground/gen_agents/storage_and_statics/storage/July1_the_ville_isabella_maria_klaus-step-3-1/personas"
         }
     }
 
@@ -160,7 +166,6 @@ if __name__ == "__main__":
         "task": "get_utterence",
         "task_params": {
             "init_persona_name": "Isabella Rodriguez",
-            "init_persona_folder": "/Users/arshath/play/playground/gen_agents/storage_and_statics/storage/July1_the_ville_isabella_maria_klaus-step-3-1/personas",
             "target_persona_name": "Maria Lopez",
             "target_persona_description": "sleeping",
             "curr_chat": "[]",
@@ -182,7 +187,6 @@ if __name__ == "__main__":
         "task": "get_utterence",
         "task_params": {
             "init_persona_name": "Maria Lopez",
-            "init_persona_folder": "/Users/arshath/play/playground/gen_agents/storage_and_statics/storage/July1_the_ville_isabella_maria_klaus-step-3-1/personas",
             "target_persona_name": "Isabella Rodriguez",
             "target_persona_description": "sleeping",
             "curr_chat": json.dumps(res['curr_chat']),
