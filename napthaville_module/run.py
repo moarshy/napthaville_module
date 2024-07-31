@@ -27,6 +27,7 @@ logger = get_logger()
 
 BASE_OUTPUT_DIR = os.getenv("BASE_OUTPUT_DIR", None)
 PERSONAS_FOLDER = f"{BASE_OUTPUT_DIR}/napthaville_personas"
+MAZE_FOLDER = f"{BASE_OUTPUT_DIR}/napthaville_maze/matrix"
 
 
 ALL_PERSONAS = [
@@ -77,8 +78,7 @@ def get_utterence(task_params: dict):
     target_persona_name = task_params["target_persona_name"]
     target_persona_description = task_params["target_persona_description"]
     curr_chat = json.loads(task_params["curr_chat"])
-    maze_folder = task_params["maze_folder"]
-    maze = Maze('maze', maze_folder)
+    maze = Maze('maze', MAZE_FOLDER)
 
     focal_points = [f"{target_persona_name}"]
     retrieved = new_retrieve(init_persona, focal_points, 50)
@@ -151,7 +151,6 @@ if __name__ == "__main__":
         "task": "get_personal_info",
         "task_params": {
             "persona_name": "Isabella Rodriguez",
-            # "persona_folder": "/Users/arshath/play/playground/gen_agents/storage_and_statics/storage/July1_the_ville_isabella_maria_klaus-step-3-1/personas"
         }
     }
 
