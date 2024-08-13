@@ -8,6 +8,7 @@ Description: This defines the "Retrieve" module for generative agents.
 from numpy import dot
 from numpy.linalg import norm
 from napthaville.persona.prompt_template.gpt_structure2 import get_embedding
+from napthaville.persona.memory_structures.associative_memory import ConceptNode
 
 
 def retrieve(persona, perceived):
@@ -35,11 +36,18 @@ def retrieve(persona, perceived):
         relevant_events = persona.a_mem.retrieve_relevant_events(
             event.subject, event.predicate, event.object
         )
+        # convert the set to a list
+        relevant_events = list(relevant_events)
+        relevant_events = [i.to_dict() for i in relevant_events if isinstance(i, ConceptNode)]
+
         retrieved[event.description]["events"] = list(relevant_events)
 
         relevant_thoughts = persona.a_mem.retrieve_relevant_thoughts(
             event.subject, event.predicate, event.object
         )
+        relevant_thoughts = list(relevant_thoughts)
+        relevant_thoughts = [i.to_dict() for i in relevant_thoughts if isinstance(i, ConceptNode)]
+        
         retrieved[event.description]["thoughts"] = list(relevant_thoughts)
 
     return retrieved

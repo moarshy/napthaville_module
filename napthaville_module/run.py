@@ -1,126 +1,16 @@
-import os 
 import json
-import logging
 from napthaville_module.schemas import InputSchema
-from napthaville.persona.persona import Persona
-from napthaville.persona.cognitive_modules.retrieve import new_retrieve
-from napthaville.persona.cognitive_modules.converse import (
-    generate_summarize_agent_relationship,
-    generate_one_utterance
-)
-from napthaville.maze import Maze
-
-
-def get_logger():
-    logger = logging.getLogger(__name__)
-    logger.setLevel(logging.INFO)
-    ch = logging.StreamHandler()
-    ch.setLevel(logging.INFO)
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    ch.setFormatter(formatter)
-    logger.addHandler(ch)
-    return logger
+from napthaville_module.others.chat import get_personal_info, get_utterence
+from napthaville_module.cognitive_modules.perceive import get_perception
+from napthaville_module.cognitive_modules.retrieve import get_retrieved_events
+from napthaville_module.cognitive_modules.perceive_retrieve import get_perceive_retrieve
+from napthaville_module.cognitive_modules.plan import get_plan
+from napthaville_module.others.scratch import get_scratch
+from napthaville_module.others.move import get_move
+from napthaville_module.utils import BASE_OUTPUT_DIR, ALL_PERSONAS, get_logger
 
 
 logger = get_logger()
-
-
-BASE_OUTPUT_DIR = os.getenv("BASE_OUTPUT_DIR", None)
-PERSONAS_FOLDER = f"{BASE_OUTPUT_DIR}/napthaville_personas"
-MAZE_FOLDER = f"{BASE_OUTPUT_DIR}/napthaville_maze/matrix"
-
-
-ALL_PERSONAS = [
-    "Isabella Rodriguez",
-    "Maria Lopez",
-    "Klaus Mueller"
-]
-
-
-def _check_persona(persona_name: str):
-    if persona_name not in ALL_PERSONAS:
-        return False
-    return True
-
-
-def get_personal_info(task_params: dict):
-    persona_name = task_params["persona_name"]
-    exists = _check_persona(persona_name)
-
-    if not exists:
-        res = {
-            "error": f"Persona {persona_name} not found. Please choose from {ALL_PERSONAS}"
-        }
-    
-    else:
-        personals_folder = f"{PERSONAS_FOLDER}/{persona_name}"
-        persona = Persona(persona_name, personals_folder)
-        name = persona.scratch.name
-        act_description = persona.scratch.act_description
-        res =  {
-            "name": name,
-            "act_description": act_description
-        }
-    return json.dumps(res)
-
-
-def get_utterence(task_params: dict):
-    exists = _check_persona(task_params['init_persona_name'])
-
-    if not exists:
-        res = {
-            "error": f"Persona {task_params['init_persona_name']} not found. Please choose from {ALL_PERSONAS}"
-        } 
-        return json.dumps(res)
-
-    persona_folder = f"{PERSONAS_FOLDER}/{task_params['init_persona_name']}"
-    init_persona = Persona(task_params["init_persona_name"], persona_folder)
-    target_persona_name = task_params["target_persona_name"]
-    target_persona_description = task_params["target_persona_description"]
-    curr_chat = json.loads(task_params["curr_chat"])
-    maze = Maze('maze', MAZE_FOLDER)
-
-    focal_points = [f"{target_persona_name}"]
-    retrieved = new_retrieve(init_persona, focal_points, 50)
-    relationship = generate_summarize_agent_relationship(
-        init_persona,
-        target_persona_name,
-        retrieved
-    )
-    last_chat = ""
-    for i in curr_chat[-4:]:
-        last_chat += ": ".join(i) + "\n"
-    
-    if last_chat:
-        focal_points = [
-            f"{relationship}",
-            f"{target_persona_name} is {target_persona_description}",
-            last_chat,
-        ]
-    else:
-        focal_points = [
-            f"{relationship}",
-            f"{target_persona_name} is {target_persona_description}",
-        ]
-    retrieved = new_retrieve(init_persona, focal_points, 15)
-    utt, end = generate_one_utterance(
-        maze=maze,
-        init_persona=init_persona,
-        target_persona_name=target_persona_name,
-        target_persona_description=target_persona_description,
-        retrieved=retrieved,
-        curr_chat=curr_chat
-    )
-
-    curr_chat += [[init_persona.scratch.name, utt]]
-
-    res = {
-        "utterance": utt,
-        "end": end,
-        "curr_chat": curr_chat
-    }
-
-    return json.dumps(res)
 
 
 def run(inputs: InputSchema, worker_nodes = None, orchestrator_node = None, flow_run = None, cfg: dict = None):
@@ -137,6 +27,24 @@ def run(inputs: InputSchema, worker_nodes = None, orchestrator_node = None, flow
     elif task == "get_utterence":
         return get_utterence(task_params)
     
+    elif task == "get_perception":
+        return get_perception(task_params)
+    
+    elif task == "get_retrieved_events":
+        return get_retrieved_events(task_params)
+    
+    elif task == "get_perceive_retrieve":
+        return get_perceive_retrieve(task_params)
+    
+    elif task == "get_scratch":
+        return get_scratch(task_params)
+    
+    elif task == "get_plan":
+        return get_plan(task_params)
+    
+    elif task == "get_move":
+        return get_move(task_params)
+    
     else:
         res = {
             "error": f"Task {task} not found. Please choose from {ALL_PERSONAS}"
@@ -144,54 +52,53 @@ def run(inputs: InputSchema, worker_nodes = None, orchestrator_node = None, flow
         return json.dumps(res)
 
 
-if __name__ == "__main__":
+# if __name__ == "__main__":
+    # # Test get_personal_info
+    # inputs = {
+    #     "task": "get_personal_info",
+    #     "task_params": {
+    #         "persona_name": "Isabella Rodriguez",
+    #     }
+    # }
 
-    # Test get_personal_info
-    inputs = {
-        "task": "get_personal_info",
-        "task_params": {
-            "persona_name": "Isabella Rodriguez",
-        }
-    }
+    # inputs = InputSchema(**inputs)
 
-    inputs = InputSchema(**inputs)
+    # res = run(inputs)
+    # print(res)
+    # print(type(res))
 
-    res = run(inputs)
-    print(res)
-    print(type(res))
+    # # Test get_utterence
+    # inputs = {
+    #     "task": "get_utterence",
+    #     "task_params": {
+    #         "init_persona_name": "Isabella Rodriguez",
+    #         "target_persona_name": "Maria Lopez",
+    #         "target_persona_description": "sleeping",
+    #         "curr_chat": "[]",
+    #         "maze_folder": "/Users/arshath/play/playground/gen_agents/storage_and_statics/the_ville/matrix"
+    #     }
+    # }
 
-    # Test get_utterence
-    inputs = {
-        "task": "get_utterence",
-        "task_params": {
-            "init_persona_name": "Isabella Rodriguez",
-            "target_persona_name": "Maria Lopez",
-            "target_persona_description": "sleeping",
-            "curr_chat": "[]",
-            "maze_folder": "/Users/arshath/play/playground/gen_agents/storage_and_statics/the_ville/matrix"
-        }
-    }
-
-    inputs = InputSchema(**inputs)
-    res = run(inputs)
-    print(res)
-    print(type(res))
-    res = json.loads(res)
-    print(type(res))
-    print(res['curr_chat'])
-    print(type(res['curr_chat']))
+    # inputs = InputSchema(**inputs)
+    # res = run(inputs)
+    # print(res)
+    # print(type(res))
+    # res = json.loads(res)
+    # print(type(res))
+    # print(res['curr_chat'])
+    # print(type(res['curr_chat']))
 
 
-    inputs = {
-        "task": "get_utterence",
-        "task_params": {
-            "init_persona_name": "Maria Lopez",
-            "target_persona_name": "Isabella Rodriguez",
-            "target_persona_description": "sleeping",
-            "curr_chat": json.dumps(res['curr_chat']),
-            "maze_folder": "/Users/arshath/play/playground/gen_agents/storage_and_statics/the_ville/matrix"
-        }
-    }
-    inputs = InputSchema(**inputs)
-    res = run(inputs)
-    print(res)
+    # inputs = {
+    #     "task": "get_utterence",
+    #     "task_params": {
+    #         "init_persona_name": "Maria Lopez",
+    #         "target_persona_name": "Isabella Rodriguez",
+    #         "target_persona_description": "sleeping",
+    #         "curr_chat": json.dumps(res['curr_chat']),
+    #         "maze_folder": "/Users/arshath/play/playground/gen_agents/storage_and_statics/the_ville/matrix"
+    #     }
+    # }
+    # inputs = InputSchema(**inputs)
+    # res = run(inputs)
+    # print(res)

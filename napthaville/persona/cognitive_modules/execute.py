@@ -12,7 +12,7 @@ from napthaville.path_finder import path_finder
 collision_block_id = 32125
 
 
-def execute(persona, maze, personas, plan):
+def execute(persona, maze, persona_names_curr_tile, plan):
     """
     Given a plan (action's string address), we execute the plan (actually
     outputs the tile coordinate path and the next coordinate for the
@@ -21,7 +21,7 @@ def execute(persona, maze, personas, plan):
     INPUT:
       persona: Current <Persona> instance.
       maze: An instance of current <Maze>.
-      personas: A dictionary of all personas in the world.
+      persona_names_curr_tile: A dictionary of all personas in the world mapped to scrach.curr_tile.
       plan: This is a string address of the action we need to execute.
          It comes in the form of "{world}:{sector}:{arena}:{game_objects}".
          It is important that you access this without doing negative
@@ -47,9 +47,7 @@ def execute(persona, maze, personas, plan):
 
         if "<persona>" in plan:
             # Executing persona-persona interaction.
-            target_p_tile = personas[
-                plan.split("<persona>")[-1].strip()
-            ].scratch.curr_tile
+            target_p_tile = persona_names_curr_tile[plan.split("<persona>")[-1].strip()]
             potential_path = path_finder(
                 maze.collision_maze,
                 persona.scratch.curr_tile,
@@ -111,7 +109,7 @@ def execute(persona, maze, personas, plan):
         # headed to the same location on the maze. It is ok if they end up on the
         # same time, but we try to lower that probability.
         # We take care of that overlap here.
-        persona_name_set = set(personas.keys())
+        persona_name_set = list(persona_names_curr_tile.keys())
         new_target_tiles = []
         for i in target_tiles:
             curr_event_set = maze.access_tile(i)["events"]

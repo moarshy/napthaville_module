@@ -599,3 +599,6 @@ class Scratch:
             minute = curr_min_sum % 60
             ret += f"{hour:02}:{minute:02} || {row[0]}\n"
         return ret
+
+    def to_dict(self):
+        return self.__dict__

@@ -9,7 +9,7 @@ import math
 from operator import itemgetter
 from napthaville.global_methods import *
 from napthaville.persona.prompt_template.gpt_structure2 import get_embedding
-from napthaville.persona.prompt_template.run_gpt_prompt import (
+from napthaville.persona.prompt_template.run_gpt_prompt2 import (
     run_gpt_prompt_chat_poignancy,
     run_gpt_prompt_event_poignancy,
 )

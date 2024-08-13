@@ -9,21 +9,21 @@ import datetime
 import math
 import random
 
-from napthaville.persona.prompt_template.run_gpt_prompt import (
-    run_gpt_prompt_wake_up_hour,
-    run_gpt_prompt_daily_plan,
-    run_gpt_prompt_generate_hourly_schedule,
-    run_gpt_prompt_task_decomp,
-    run_gpt_prompt_action_sector,
-    run_gpt_prompt_action_arena,
-    run_gpt_prompt_action_game_object,
-    run_gpt_prompt_pronunciatio,
-    run_gpt_prompt_event_triple,
-    run_gpt_prompt_act_obj_desc,
-    run_gpt_prompt_act_obj_event_triple,
-    run_gpt_prompt_summarize_conversation,
-    run_gpt_prompt_decide_to_talk,
-    run_gpt_prompt_decide_to_react,
+from napthaville.persona.prompt_template.run_gpt_prompt2 import (
+    run_gpt_prompt_wake_up_hour, #
+    run_gpt_prompt_daily_plan, #
+    run_gpt_prompt_generate_hourly_schedule, #
+    run_gpt_prompt_task_decomp, #
+    run_gpt_prompt_action_sector, #
+    run_gpt_prompt_action_arena, #
+    run_gpt_prompt_action_game_object, #
+    run_gpt_prompt_pronunciatio, #
+    run_gpt_prompt_event_triple, #
+    run_gpt_prompt_act_obj_desc, #
+    run_gpt_prompt_act_obj_event_triple, #
+    run_gpt_prompt_summarize_conversation, #
+    run_gpt_prompt_decide_to_talk, # target_persona_name, target_persona_scratch
+    run_gpt_prompt_decide_to_react, # target_persona_name, target_persona_scratch
     run_gpt_prompt_new_decomp_schedule,
 )
 from napthaville.persona.prompt_template.gpt_structure2 import ChatGPT_single_request
@@ -342,8 +342,18 @@ def generate_convo_summary(persona, convo):
     return convo_summary
 
 
-def generate_decide_to_talk(init_persona, target_persona, retrieved):
-    x = run_gpt_prompt_decide_to_talk(init_persona, target_persona, retrieved)[0]
+def generate_decide_to_talk(
+    init_persona, 
+    target_persona_name, 
+    target_persona_scratch,
+    retrieved
+):
+    x = run_gpt_prompt_decide_to_talk(
+        persona=init_persona,
+        target_persona_name=target_persona_name,
+        target_persona_scratch=target_persona_scratch,
+        retrieved=retrieved,
+    )[0]
     print("GNS FUNCTION: <generate_decide_to_talk>")
 
     if x == "yes":
@@ -352,9 +362,14 @@ def generate_decide_to_talk(init_persona, target_persona, retrieved):
         return False
 
 
-def generate_decide_to_react(init_persona, target_persona, retrieved):
+def generate_decide_to_react(init_persona, target_persona_name, target_persona_scratch, retrieved):
     print("GNS FUNCTION: <generate_decide_to_react>")
-    return run_gpt_prompt_decide_to_react(init_persona, target_persona, retrieved)[0]
+    return run_gpt_prompt_decide_to_react(
+        persona=init_persona,
+        target_persona_name=target_persona_name,
+        target_persona_scratch=target_persona_scratch,
+        retrieved=retrieved,
+    )[0]
 
 
 def generate_new_decomp_schedule(
@@ -787,20 +802,20 @@ def _should_react(persona, retrieved, personas):
                     ["events"] = [<ConceptNode>, ...],
                     ["thoughts"] = [<ConceptNode>, ...] }
       personas: A dictionary that contains all persona names as keys, and the
-                <Persona> instance as values.
+                persona_scratch as dictionary values.
     """
 
-    def lets_talk(init_persona, target_persona, retrieved):
+    def lets_talk(init_persona, target_persona_scratch, retrieved):
         if (
-            not target_persona.scratch.act_address
-            or not target_persona.scratch.act_description
+            not target_persona_scratch['act_address']
+            or not target_persona_scratch['act_description']
             or not init_persona.scratch.act_address
             or not init_persona.scratch.act_description
         ):
             return False
 
         if (
-            "sleeping" in target_persona.scratch.act_description
+            "sleeping" in target_persona_scratch['act_description']
             or "sleeping" in init_persona.scratch.act_description
         ):
             return False
@@ -808,32 +823,37 @@ def _should_react(persona, retrieved, personas):
         if init_persona.scratch.curr_time.hour == 23:
             return False
 
-        if "<waiting>" in target_persona.scratch.act_address:
+        if "<waiting>" in target_persona_scratch['act_address']:
             return False
 
-        if target_persona.scratch.chatting_with or init_persona.scratch.chatting_with:
+        if target_persona_scratch['chatting_with'] or init_persona.scratch.chatting_with:
             return False
 
-        if target_persona.name in init_persona.scratch.chatting_with_buffer:
-            if init_persona.scratch.chatting_with_buffer[target_persona.name] > 0:
+        if target_persona_scratch['name'] in init_persona.scratch.chatting_with_buffer:
+            if init_persona.scratch.chatting_with_buffer[target_persona_scratch['name']] > 0:
                 return False
 
-        if generate_decide_to_talk(init_persona, target_persona, retrieved):
+        if generate_decide_to_talk(
+            init_persona=init_persona,
+            target_persona_name=target_persona_scratch['name'],
+            target_persona_scratch=target_persona_scratch,
+            retrieved=retrieved,
+        ):
             return True
 
         return False
 
-    def lets_react(init_persona, target_persona, retrieved):
+    def lets_react(init_persona, target_persona_scratch, retrieved):
         if (
-            not target_persona.scratch.act_address
-            or not target_persona.scratch.act_description
+            not target_persona_scratch['act_address']
+            or not target_persona_scratch['act_description']
             or not init_persona.scratch.act_address
             or not init_persona.scratch.act_description
         ):
             return False
 
         if (
-            "sleeping" in target_persona.scratch.act_description
+            "sleeping" in target_persona_scratch['act_description']
             or "sleeping" in init_persona.scratch.act_description
         ):
             return False
@@ -842,20 +862,25 @@ def _should_react(persona, retrieved, personas):
         if init_persona.scratch.curr_time.hour == 23:
             return False
 
-        if "waiting" in target_persona.scratch.act_description:
+        if "waiting" in target_persona_scratch['act_description']:
             return False
         if init_persona.scratch.planned_path == []:
             return False
 
-        if init_persona.scratch.act_address != target_persona.scratch.act_address:
+        if init_persona.scratch.act_address != target_persona_scratch['act_address']:
             return False
 
-        react_mode = generate_decide_to_react(init_persona, target_persona, retrieved)
+        react_mode = generate_decide_to_react(
+            init_persona=init_persona,
+            target_persona_name=target_persona_scratch['name'],
+            target_persona_scratch=target_persona_scratch,
+            retrieved=retrieved,
+        )
 
         if react_mode == "1":
             wait_until = (
-                target_persona.scratch.act_start_time
-                + datetime.timedelta(minutes=target_persona.scratch.act_duration - 1)
+                target_persona_scratch['act_start_time']
+                + datetime.timedelta(minutes=target_persona_scratch['act_duration'] - 1)
             ).strftime("%B %d, %Y, %H:%M:%S")
             return f"wait: {wait_until}"
         elif react_mode == "2":
@@ -878,9 +903,17 @@ def _should_react(persona, retrieved, personas):
 
     if ":" not in curr_event.subject:
         # this is a persona event.
-        if lets_talk(persona, personas[curr_event.subject], retrieved):
+        if lets_talk(
+            persona, 
+            personas[curr_event.subject], 
+            retrieved
+        ):
             return f"chat with {curr_event.subject}"
-        react_mode = lets_react(persona, personas[curr_event.subject], retrieved)
+        react_mode = lets_react(
+            persona, 
+            personas[curr_event.subject], 
+            retrieved
+        )
         return react_mode
     return False
 
@@ -1094,8 +1127,7 @@ def plan(persona, maze, personas, new_day, retrieved):
 
     INPUT:
       maze: Current <Maze> instance of the world.
-      personas: A dictionary that contains all persona names as keys, and the
-                Persona instance as values.
+      personas: A dictionary that contains all persona names as keys, and the persona_scratch.
       new_day: This can take one of the three values.
         1) <Boolean> False -- It is not a "new day" cycle (if it is, we would
            need to call the long term planning sequence for the persona).
