@@ -17,11 +17,6 @@ from napthaville_module.utils import (
 
 
 def get_move(task_params: dict):
-    debug = task_params['debug']
-    if debug:
-        PERSONAS_FOLDER = '/Users/arshath/play/playground/gen_agents/storage_and_statics/storage/July1_the_ville_isabella_maria_klaus-step-3-1/personas'
-        MAZE_FOLDER = '/Users/arshath/play/playground/gen_agents/storage_and_statics/the_ville/matrix'
-
     # prepare task params
     curr_tile = task_params['curr_tile']
     curr_time = task_params['curr_time']
