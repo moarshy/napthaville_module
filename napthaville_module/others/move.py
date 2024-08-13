@@ -21,6 +21,9 @@ def get_move(task_params: dict):
     curr_tile = task_params['curr_tile']
     curr_time = task_params['curr_time']
 
+    # curr_time is str, convert to datetime
+    curr_time = datetime.strptime(curr_time, "%Y-%m-%d %H:%M:%S")
+
     # prepare init persona
     init_persona_name = task_params['init_persona_name']
     if not _check_persona(init_persona_name):
