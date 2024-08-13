@@ -3,7 +3,7 @@ import logging
 
 
 BASE_OUTPUT_DIR = os.getenv("BASE_OUTPUT_DIR", None)
-PERSONAS_FOLDER = f"{BASE_OUTPUT_DIR}/napthaville/step-3-3"
+PERSONAS_FOLDER = f"{BASE_OUTPUT_DIR}/napthaville/step-3-3/personas"
 MAZE_FOLDER = f"{BASE_OUTPUT_DIR}/napthaville/the_ville/matrix"
 
 
