@@ -12,6 +12,7 @@ from napthaville_module.utils import (
 
 def get_scratch(task_params: dict):
     persona_name = task_params["persona_name"]
+    sims_folder = task_params["sims_folder"]
     exists = _check_persona(persona_name)
 
     if not exists:
@@ -20,7 +21,7 @@ def get_scratch(task_params: dict):
         }
         return json.dumps(res)
     
-    persona_folder = f"{PERSONAS_FOLDER}/{persona_name}"
+    persona_folder = f"{sims_folder}/{persona_name}"
     persona = Persona(persona_name, persona_folder)
     scratch = scratch_to_dict(persona.scratch)
 

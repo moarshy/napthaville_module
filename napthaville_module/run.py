@@ -6,7 +6,7 @@ from napthaville_module.cognitive_modules.retrieve import get_retrieved_events
 from napthaville_module.cognitive_modules.perceive_retrieve import get_perceive_retrieve
 from napthaville_module.cognitive_modules.plan import get_plan
 from napthaville_module.others.scratch import get_scratch
-from napthaville_module.others.move import get_move
+from napthaville_module.others.move import get_move, fork_persona
 from napthaville_module.utils import BASE_OUTPUT_DIR, ALL_PERSONAS, get_logger
 
 
@@ -44,6 +44,9 @@ def run(inputs: InputSchema, worker_nodes = None, orchestrator_node = None, flow
     
     elif task == "get_move":
         return get_move(task_params)
+    
+    elif task == "fork_persona":
+        return fork_persona(task_params)
     
     else:
         res = {

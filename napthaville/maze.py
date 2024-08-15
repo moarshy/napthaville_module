@@ -384,3 +384,67 @@ class Maze:
         for event in curr_tile_ev_cp:
             if event[0] == subject:
                 self.tiles[tile[1]][tile[0]]["events"].remove(event)
+
+    def to_json(self):
+        serialized_data = {
+            "maze_name": self.maze_name,
+            "maze_width": self.maze_width,
+            "maze_height": self.maze_height,
+            "sq_tile_size": self.sq_tile_size,
+            "special_constraint": self.special_constraint,
+            "collision_maze": self.collision_maze,
+            "tiles": [
+                [
+                    {
+                        "world": tile["world"],
+                        "sector": tile["sector"],
+                        "arena": tile["arena"],
+                        "game_object": tile["game_object"],
+                        "spawning_location": tile["spawning_location"],
+                        "collision": tile["collision"],
+                        "events": list(tile["events"])  # Convert set to list for JSON serialization
+                    }
+                    for tile in row
+                ]
+                for row in self.tiles
+            ],
+            "address_tiles": {
+                key: list(value)  # Convert set to list for JSON serialization
+                for key, value in self.address_tiles.items()
+            }
+        }
+        return json.dumps(serialized_data)
+    
+    @classmethod
+    def from_json(cls, json_string):
+        data = json.loads(json_string)
+        maze = cls(data["maze_name"])
+        
+        maze.maze_width = data["maze_width"]
+        maze.maze_height = data["maze_height"]
+        maze.sq_tile_size = data["sq_tile_size"]
+        maze.special_constraint = data["special_constraint"]
+        maze.collision_maze = data["collision_maze"]
+        
+        maze.tiles = [
+            [
+                {
+                    "world": tile["world"],
+                    "sector": tile["sector"],
+                    "arena": tile["arena"],
+                    "game_object": tile["game_object"],
+                    "spawning_location": tile["spawning_location"],
+                    "collision": tile["collision"],
+                    "events": set(tuple(event) for event in tile["events"])  # Convert list back to set
+                }
+                for tile in row
+            ]
+            for row in data["tiles"]
+        ]
+        
+        maze.address_tiles = {
+            key: set(tuple(coord) for coord in value)  # Convert list back to set
+            for key, value in data["address_tiles"].items()
+        }
+        
+        return maze
