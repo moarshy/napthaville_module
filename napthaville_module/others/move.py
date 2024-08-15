@@ -4,6 +4,7 @@ import os
 import shutil
 import logging
 from pathlib import Path
+from typing import Dict, Any
 from datetime import datetime
 from napthaville.maze import Maze
 from napthaville.persona.persona import Persona
@@ -18,13 +19,14 @@ from napthaville_module.utils import (
     MAZE_FOLDER,
     ALL_PERSONAS,
     _check_persona,
+    retrieve_maze_json_from_ipfs,
+    upload_maze_json_to_ipfs
 )
 
 
 logger = logging.getLogger(__name__)
 
-
-def fork_persona(task_params):
+async def fork_persona(task_params):
     if not PERSONAS_FOLDER or not MAZE_FOLDER:
         raise ValueError("PERSONAS_FOLDER and MAZE_FOLDER must be set in environment variables when not in debug mode")
 
@@ -43,39 +45,32 @@ def fork_persona(task_params):
     # Copy the base persona folder to the new persona folder
     shutil.copytree(base_persona_folder, new_persona_folder)
 
-    # # Copy contents of MAZE_FOLDER to the new_sims_folder
-    # for item in os.listdir(MAZE_FOLDER):
-    #     s = os.path.join(MAZE_FOLDER, item)
-    #     d = os.path.join(new_sims_folder, item)
-    #     if os.path.isdir(s):
-    #         shutil.copytree(s, d, dirs_exist_ok=True)
-    #     else:
-    #         shutil.copy2(s, d)
+    # Retrieve maze_json from IPFS
+    maze_ipfs_hash = task_params['maze_ipfs_hash']
+    maze_json = await retrieve_maze_json_from_ipfs(maze_ipfs_hash)
 
-    maze_json = task_params['maze_json']
     curr_tile = task_params['curr_tile']
     maze = Maze.from_json(maze_json)
     persona = Persona(task_params['persona_name'], new_persona_folder)
     maze.tiles[curr_tile[1]][curr_tile[0]]['events'].add(persona.scratch.get_curr_event_and_desc())
 
-    maze_json = maze.to_json()
+    # Upload updated maze back to IPFS
+    updated_maze_json = maze.to_json()
+    new_maze_ipfs_hash = await upload_maze_json_to_ipfs(updated_maze_json)
 
     to_return = {
-        "maze_json": maze_json,
+        "maze_ipfs_hash": new_maze_ipfs_hash,
         "sims_folder": new_sims_folder.name
     }
 
     return json.dumps(to_return)
-
 
 def prepare_maze(persona, maze):
     p_x, p_y = persona.scratch.curr_tile
     maze.tiles[p_y][p_x]['events'].add(persona.scratch.get_curr_event_and_desc())
     return maze
 
-
-
-def get_move(task_params: Dict[str, Any]) -> str:
+async def get_move(task_params: Dict[str, Any]) -> str:
     try:
         sims_folder = task_params['sims_folder']
         curr_tile = task_params['curr_tile']
@@ -91,7 +86,11 @@ def get_move(task_params: Dict[str, Any]) -> str:
         _personas = json.loads(task_params['personas'])
         personas = {name: dict_to_scratch(persona_dict) for name, persona_dict in _personas.items()}
 
-        maze = Maze('maze', MAZE_FOLDER)
+        # Retrieve maze_json from IPFS
+        maze_ipfs_hash = task_params['maze_ipfs_hash']
+        maze_json = await retrieve_maze_json_from_ipfs(maze_ipfs_hash)
+        maze = Maze.from_json(maze_json)
+
         init_persona.scratch.curr_tile = curr_tile
 
         maze = prepare_maze(init_persona, maze)
@@ -116,9 +115,14 @@ def get_move(task_params: Dict[str, Any]) -> str:
         execute_response = execute(persona=init_persona, maze=maze,
                                    persona_names_curr_tile=persona_names_curr_tile, plan=plan)
 
+        # Upload updated maze back to IPFS
+        updated_maze_json = maze.to_json()
+        new_maze_ipfs_hash = await upload_maze_json_to_ipfs(updated_maze_json)
+
         to_return = {
             "execute_response": execute_response,
-            "chat": init_persona.scratch.chat
+            "chat": init_persona.scratch.chat,
+            "maze_ipfs_hash": new_maze_ipfs_hash
         }
 
         return json.dumps(to_return, cls=DateTimeEncoder)
