@@ -1,11 +1,8 @@
 import json
 import os
-from napthaville.maze import Maze
 from napthaville.persona.persona import Persona
 from napthaville.utils import scratch_to_dict
 from napthaville_module.utils import (
-    PERSONAS_FOLDER,
-    MAZE_FOLDER,
     ALL_PERSONAS,
     _check_persona
 )

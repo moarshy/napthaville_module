@@ -107,9 +107,9 @@ def get_move(task_params: Dict[str, Any]) -> str:
         reflect(init_persona)
 
         # Save memories
-        init_persona.a_mem.save(f"{sims_folder}/{init_persona_name}/associative_memory")
-        init_persona.scratch.save(f"{sims_folder}/{init_persona_name}/scratch.json")
-        init_persona.s_mem.save(f"{sims_folder}/{init_persona_name}/spatial_memory.json")
+        init_persona.a_mem.save(f"{os.getenv('BASE_OUTPUT_DIR')}/{sims_folder}/{init_persona_name}/associative_memory")
+        init_persona.scratch.save(f"{os.getenv('BASE_OUTPUT_DIR')}/{sims_folder}/{init_persona_name}/scratch.json")
+        init_persona.s_mem.save(f"{os.getenv('BASE_OUTPUT_DIR')}/{sims_folder}/{init_persona_name}/spatial_memory.json")
 
         persona_names_curr_tile = {name: persona['curr_tile'] for name, persona in personas.items()}
         execute_response = execute(persona=init_persona, maze=maze,
