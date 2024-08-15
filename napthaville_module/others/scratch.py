@@ -1,4 +1,5 @@
 import json
+import os
 from napthaville.maze import Maze
 from napthaville.persona.persona import Persona
 from napthaville.utils import scratch_to_dict
@@ -21,7 +22,7 @@ def get_scratch(task_params: dict):
         }
         return json.dumps(res)
     
-    persona_folder = f"{sims_folder}/{persona_name}"
+    persona_folder = f"{os.getenv('BASE_OUTPUT_DIR')}/{sims_folder}/{persona_name}"
     persona = Persona(persona_name, persona_folder)
     scratch = scratch_to_dict(persona.scratch)
 
