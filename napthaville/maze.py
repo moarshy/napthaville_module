@@ -416,9 +416,9 @@ class Maze:
         return json.dumps(serialized_data)
     
     @classmethod
-    def from_json(cls, json_string):
+    def from_json(cls, json_string, maze_folder):
         data = json.loads(json_string)
-        maze = cls(data["maze_name"])
+        maze = cls(data["maze_name"], maze_folder)
         
         maze.maze_width = data["maze_width"]
         maze.maze_height = data["maze_height"]

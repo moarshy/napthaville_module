@@ -50,7 +50,7 @@ def fork_persona(task_params):
     maze_json = retrieve_maze_json_from_ipfs(maze_ipfs_hash)
 
     curr_tile = task_params['curr_tile']
-    maze = Maze.from_json(maze_json)
+    maze = Maze.from_json(maze_json, MAZE_FOLDER)
     persona = Persona(task_params['persona_name'], new_persona_folder)
     maze.tiles[curr_tile[1]][curr_tile[0]]['events'].add(persona.scratch.get_curr_event_and_desc())
 
@@ -89,7 +89,7 @@ def get_move(task_params: Dict[str, Any]) -> str:
         # Retrieve maze_json from IPFS
         maze_ipfs_hash = task_params['maze_ipfs_hash']
         maze_json = retrieve_maze_json_from_ipfs(maze_ipfs_hash)
-        maze = Maze.from_json(maze_json)
+        maze = Maze.from_json(maze_json, MAZE_FOLDER)
 
         init_persona.scratch.curr_tile = curr_tile
 
