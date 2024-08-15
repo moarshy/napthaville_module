@@ -80,7 +80,7 @@ def get_move(task_params: Dict[str, Any]) -> str:
         if not _check_persona(init_persona_name):
             return json.dumps({"error": f"Persona {init_persona_name} not found. Please choose from {ALL_PERSONAS}"})
         
-        persona_folder = f"{sims_folder}/{init_persona_name}"
+        persona_folder = f"{os.getenv('BASE_OUTPUT_DIR')}/{sims_folder}/{init_persona_name}"
         init_persona = Persona(init_persona_name, persona_folder)
 
         _personas = json.loads(task_params['personas'])
