@@ -26,7 +26,7 @@ from napthaville_module.utils import (
 
 logger = logging.getLogger(__name__)
 
-async def fork_persona(task_params):
+def fork_persona(task_params):
     if not PERSONAS_FOLDER or not MAZE_FOLDER:
         raise ValueError("PERSONAS_FOLDER and MAZE_FOLDER must be set in environment variables when not in debug mode")
 
@@ -47,7 +47,7 @@ async def fork_persona(task_params):
 
     # Retrieve maze_json from IPFS
     maze_ipfs_hash = task_params['maze_ipfs_hash']
-    maze_json = await retrieve_maze_json_from_ipfs(maze_ipfs_hash)
+    maze_json = retrieve_maze_json_from_ipfs(maze_ipfs_hash)
 
     curr_tile = task_params['curr_tile']
     maze = Maze.from_json(maze_json)
@@ -56,7 +56,7 @@ async def fork_persona(task_params):
 
     # Upload updated maze back to IPFS
     updated_maze_json = maze.to_json()
-    new_maze_ipfs_hash = await upload_maze_json_to_ipfs(updated_maze_json)
+    new_maze_ipfs_hash = upload_maze_json_to_ipfs(updated_maze_json)
 
     to_return = {
         "maze_ipfs_hash": new_maze_ipfs_hash,
@@ -70,7 +70,7 @@ def prepare_maze(persona, maze):
     maze.tiles[p_y][p_x]['events'].add(persona.scratch.get_curr_event_and_desc())
     return maze
 
-async def get_move(task_params: Dict[str, Any]) -> str:
+def get_move(task_params: Dict[str, Any]) -> str:
     try:
         sims_folder = task_params['sims_folder']
         curr_tile = task_params['curr_tile']
@@ -88,7 +88,7 @@ async def get_move(task_params: Dict[str, Any]) -> str:
 
         # Retrieve maze_json from IPFS
         maze_ipfs_hash = task_params['maze_ipfs_hash']
-        maze_json = await retrieve_maze_json_from_ipfs(maze_ipfs_hash)
+        maze_json = retrieve_maze_json_from_ipfs(maze_ipfs_hash)
         maze = Maze.from_json(maze_json)
 
         init_persona.scratch.curr_tile = curr_tile
@@ -117,7 +117,7 @@ async def get_move(task_params: Dict[str, Any]) -> str:
 
         # Upload updated maze back to IPFS
         updated_maze_json = maze.to_json()
-        new_maze_ipfs_hash = await upload_maze_json_to_ipfs(updated_maze_json)
+        new_maze_ipfs_hash = upload_maze_json_to_ipfs(updated_maze_json)
 
         to_return = {
             "execute_response": execute_response,
