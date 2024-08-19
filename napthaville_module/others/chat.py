@@ -1,4 +1,5 @@
 import json
+import os   
 from napthaville.maze import Maze
 from napthaville.persona.persona import Persona
 from napthaville.persona.cognitive_modules.retrieve import new_retrieve
@@ -6,6 +7,7 @@ from napthaville.persona.cognitive_modules.converse import (
     generate_summarize_agent_relationship,
     generate_one_utterance
 )
+from napthaville_module.cognitive_modules.plan import _chat_react, _wait_react
 from napthaville_module.utils import (
     PERSONAS_FOLDER,
     MAZE_FOLDER,
@@ -43,8 +45,8 @@ def get_utterence(task_params: dict):
             "error": f"Persona {task_params['init_persona_name']} not found. Please choose from {ALL_PERSONAS}"
         } 
         return json.dumps(res)
-
-    persona_folder = f"{PERSONAS_FOLDER}/{task_params['init_persona_name']}"
+    sims_folder = task_params['sims_folder']
+    persona_folder = f"{os.getenv('BASE_OUTPUT_DIR')}/{sims_folder}/{task_params['init_persona_name']}"
     init_persona = Persona(task_params["init_persona_name"], persona_folder)
     target_persona_name = task_params["target_persona_name"]
     target_persona_description = task_params["target_persona_description"]
@@ -92,3 +94,5 @@ def get_utterence(task_params: dict):
     }
 
     return json.dumps(res)
+
+

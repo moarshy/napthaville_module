@@ -1,15 +1,19 @@
 import json
 from napthaville_module.schemas import InputSchema
+from napthaville_module.others.fork_persona import fork_persona
 from napthaville_module.others.chat import get_personal_info, get_utterence
-from napthaville_module.cognitive_modules.perceive import get_perception
-from napthaville_module.cognitive_modules.retrieve import get_retrieved_events
-from napthaville_module.cognitive_modules.perceive_retrieve import get_perceive_retrieve
-from napthaville_module.cognitive_modules.plan import get_plan
+from napthaville_module.cognitive_modules.perceive_retrieve import get_perceived_retrieved
+from napthaville_module.cognitive_modules.plan import (
+    get_plan, 
+    get_complete_plan_chat, 
+    get_complete_plan_wait, 
+    get_complete_plan_no_reaction
+)
 from napthaville_module.others.scratch import get_scratch
-from napthaville_module.others.move import get_move, fork_persona
+from napthaville_module.others.move import get_move
 from napthaville_module.utils import BASE_OUTPUT_DIR, ALL_PERSONAS, get_logger
-
-
+from napthaville_module.cognitive_modules.plan import get_reaction_mode
+from napthaville_module.cognitive_modules.reflect_execute import get_reflect_execute
 logger = get_logger()
 
 
@@ -27,14 +31,8 @@ def run(inputs: InputSchema, worker_nodes = None, orchestrator_node = None, flow
     elif task == "get_utterence":
         return get_utterence(task_params)
     
-    elif task == "get_perception":
-        return get_perception(task_params)
-    
-    elif task == "get_retrieved_events":
-        return get_retrieved_events(task_params)
-    
-    elif task == "get_perceive_retrieve":
-        return get_perceive_retrieve(task_params)
+    elif task == "get_perceived_retrieved":
+        return get_perceived_retrieved(task_params)
     
     elif task == "get_scratch":
         return get_scratch(task_params)
@@ -48,60 +46,23 @@ def run(inputs: InputSchema, worker_nodes = None, orchestrator_node = None, flow
     elif task == "fork_persona":
         return fork_persona(task_params)
     
+    elif task == "get_reaction_mode":
+        return get_reaction_mode(task_params)
+    
+    elif task == "get_reflect_execute":
+        return get_reflect_execute(task_params)
+    
+    elif task == "get_complete_plan_chat":
+        return get_complete_plan_chat(task_params)
+    
+    elif task == "get_complete_plan_wait":
+        return get_complete_plan_wait(task_params)
+    
+    elif task == "get_complete_plan_no_reaction":
+        return get_complete_plan_no_reaction(task_params)
+    
     else:
         res = {
             "error": f"Task {task} not found. Please choose from {ALL_PERSONAS}"
         }
         return json.dumps(res)
-
-
-# if __name__ == "__main__":
-    # # Test get_personal_info
-    # inputs = {
-    #     "task": "get_personal_info",
-    #     "task_params": {
-    #         "persona_name": "Isabella Rodriguez",
-    #     }
-    # }
-
-    # inputs = InputSchema(**inputs)
-
-    # res = run(inputs)
-    # print(res)
-    # print(type(res))
-
-    # # Test get_utterence
-    # inputs = {
-    #     "task": "get_utterence",
-    #     "task_params": {
-    #         "init_persona_name": "Isabella Rodriguez",
-    #         "target_persona_name": "Maria Lopez",
-    #         "target_persona_description": "sleeping",
-    #         "curr_chat": "[]",
-    #         "maze_folder": "/Users/arshath/play/playground/gen_agents/storage_and_statics/the_ville/matrix"
-    #     }
-    # }
-
-    # inputs = InputSchema(**inputs)
-    # res = run(inputs)
-    # print(res)
-    # print(type(res))
-    # res = json.loads(res)
-    # print(type(res))
-    # print(res['curr_chat'])
-    # print(type(res['curr_chat']))
-
-
-    # inputs = {
-    #     "task": "get_utterence",
-    #     "task_params": {
-    #         "init_persona_name": "Maria Lopez",
-    #         "target_persona_name": "Isabella Rodriguez",
-    #         "target_persona_description": "sleeping",
-    #         "curr_chat": json.dumps(res['curr_chat']),
-    #         "maze_folder": "/Users/arshath/play/playground/gen_agents/storage_and_statics/the_ville/matrix"
-    #     }
-    # }
-    # inputs = InputSchema(**inputs)
-    # res = run(inputs)
-    # print(res)

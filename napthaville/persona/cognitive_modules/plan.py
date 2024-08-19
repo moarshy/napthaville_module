@@ -8,6 +8,7 @@ Description: This defines the "Plan" module for generative agents.
 import datetime
 import math
 import random
+import os
 
 from napthaville.persona.prompt_template.run_gpt_prompt2 import (
     run_gpt_prompt_wake_up_hour, #
@@ -541,7 +542,7 @@ def revise_identity(persona):
     persona.scratch.daily_plan_req = new_daily_req
 
 
-def _long_term_planning(persona, new_day):
+def _long_term_planning(persona, new_day, save_folder):
     """
     Formulates the persona's daily long-term plan if it is the start of a new
     day. This basically has two components: first, we create the wake-up hour,
@@ -604,12 +605,15 @@ def _long_term_planning(persona, new_day):
         None,
     )
 
+    # save all memory
+    persona.save(save_folder)
+
     # print("Sleeping for 20 seconds...")
     # time.sleep(10)
     # print("Done sleeping!")
 
 
-def _determine_action(persona, maze):
+def _determine_action(persona, maze, save_folder):
     """
     Creates the next action sequence for the persona.
     The main goal of this function is to run "add_new_action" on the persona's
@@ -743,6 +747,8 @@ def _determine_action(persona, maze):
         act_obj_pron,
         act_obj_event,
     )
+
+    persona.save(save_folder)
 
 
 def _choose_retrieved(persona, retrieved):
@@ -1012,22 +1018,22 @@ def _create_react(
     )
 
 
-def _chat_react(maze, persona, focused_event, reaction_mode, personas):
-    # There are two personas -- the persona who is initiating the conversation
-    # and the persona who is the target. We get the persona instances here.
+def _chat_react(
+    persona, 
+    target_persona_scratch, 
+    all_utt,
+    convo_length,
+    sims_folder,
+    init_persona_name
+):
     init_persona = persona
-    target_persona = personas[reaction_mode[9:].strip()]
-    curr_personas = [init_persona, target_persona]
-
-    # Actually creating the conversation here.
-    convo, duration_min = generate_convo(maze, init_persona, target_persona)
-    convo_summary = generate_convo_summary(init_persona, convo)
+    convo_summary = generate_convo_summary(init_persona, all_utt)
     inserted_act = convo_summary
-    inserted_act_dur = duration_min
+    inserted_act_dur = convo_length
 
-    act_start_time = target_persona.scratch.act_start_time
+    act_start_time = target_persona_scratch['act_start_time']
 
-    curr_time = target_persona.scratch.curr_time
+    curr_time = target_persona_scratch['curr_time']
     if curr_time.second != 0:
         temp_curr_time = curr_time + datetime.timedelta(seconds=60 - curr_time.second)
         chatting_end_time = temp_curr_time + datetime.timedelta(
@@ -1036,13 +1042,13 @@ def _chat_react(maze, persona, focused_event, reaction_mode, personas):
     else:
         chatting_end_time = curr_time + datetime.timedelta(minutes=inserted_act_dur)
 
-    for role, p in [("init", init_persona), ("target", target_persona)]:
+    for role, p in [("init", init_persona), ("target", target_persona_scratch)]:
         if role == "init":
-            act_address = f"<persona> {target_persona.name}"
-            act_event = (p.name, "chat with", target_persona.name)
-            chatting_with = target_persona.name
+            act_address = f"<persona> {target_persona_scratch['name']}"
+            act_event = (p.name, "chat with", target_persona_scratch['name'])
+            chatting_with = target_persona_scratch['name']
             chatting_with_buffer = {}
-            chatting_with_buffer[target_persona.name] = 800
+            chatting_with_buffer[target_persona_scratch['name']] = 800
         elif role == "target":
             act_address = f"<persona> {init_persona.name}"
             act_event = (p.name, "chat with", init_persona.name)
@@ -1062,7 +1068,7 @@ def _chat_react(maze, persona, focused_event, reaction_mode, personas):
             act_address,
             act_event,
             chatting_with,
-            convo,
+            all_utt,
             chatting_with_buffer,
             chatting_end_time,
             act_pronunciatio,
@@ -1071,7 +1077,12 @@ def _chat_react(maze, persona, focused_event, reaction_mode, personas):
             act_obj_event,
             act_start_time,
         )
-
+    
+    init_persona.a_mem.save(f"{os.getenv('BASE_OUTPUT_DIR')}/{sims_folder}/{init_persona_name}/bootstrap_memory/associative_memory")
+    init_persona.scratch.save(f"{os.getenv('BASE_OUTPUT_DIR')}/{sims_folder}/{init_persona_name}/bootstrap_memory/scratch.json")
+    init_persona.s_mem.save(f"{os.getenv('BASE_OUTPUT_DIR')}/{sims_folder}/{init_persona_name}/bootstrap_memory/spatial_memory.json")
+            
+    return init_persona
 
 def _wait_react(persona, reaction_mode):
     p = persona
@@ -1117,6 +1128,8 @@ def _wait_react(persona, reaction_mode):
         act_obj_pronunciatio,
         act_obj_event,
     )
+
+    return p
 
 
 def plan(persona, maze, personas, new_day, retrieved):

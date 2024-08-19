@@ -1,15 +1,55 @@
+import os
 import json
 from datetime import datetime
 from napthaville.persona.cognitive_modules.plan import plan as plan_function
+from napthaville.persona.cognitive_modules.plan import _wait_react, _chat_react
 from napthaville.maze import Maze
 from napthaville.persona.persona import Persona
 from napthaville.utils import dict_to_scratch, DateTimeEncoder
 from napthaville_module.utils import (
-    PERSONAS_FOLDER,
     MAZE_FOLDER,
     ALL_PERSONAS,
     _check_persona,
+    retrieve_maze_json_from_ipfs
 )
+from napthaville.persona.cognitive_modules.plan import _long_term_planning, _determine_action, _choose_retrieved, _should_react
+
+
+def get_reaction_mode(task_params: dict):
+    retrieved = json.loads(task_params['retrieved'])
+    new_day = task_params['new_day']
+    maze_ipfs_hash = task_params['maze_ipfs_hash']
+    sims_folder = task_params['sims_folder']
+    init_persona_name = task_params['init_persona_name']
+    personas = json.loads(task_params['personas'])
+    maze_json = retrieve_maze_json_from_ipfs(maze_ipfs_hash)
+    maze = Maze.from_json(maze_json, MAZE_FOLDER)
+    persona_folder = f"{os.getenv('BASE_OUTPUT_DIR')}/{sims_folder}/{init_persona_name}"
+    persona = Persona(init_persona_name, persona_folder)
+
+    if new_day:
+        _long_term_planning(persona, new_day, f"{persona_folder}/bootstrap_memory")
+    if persona.scratch.act_check_finished:
+        _determine_action(persona, maze, f"{persona_folder}/bootstrap_memory")
+
+    focused_event = False
+    if retrieved.keys():
+        focused_event = _choose_retrieved(persona, retrieved)
+    
+    if focused_event:
+        reaction_mode = _should_react(persona, focused_event, personas)
+    else:
+        reaction_mode = False
+
+    persona.scratch.save(f"{os.getenv('BASE_OUTPUT_DIR')}/{sims_folder}/{init_persona_name}/bootstrap_memory/scratch.json")
+    persona.s_mem.save(f"{os.getenv('BASE_OUTPUT_DIR')}/{sims_folder}/{init_persona_name}/bootstrap_memory/spatial_memory.json")
+    persona.a_mem.save(f"{os.getenv('BASE_OUTPUT_DIR')}/{sims_folder}/{init_persona_name}/bootstrap_memory/associative_memory")    
+
+    return {
+        "reaction_mode": reaction_mode,
+        "focused_event": focused_event.to_json() if focused_event else False
+    }
+
 
 def get_plan(task_params: dict):
     debug = task_params.get('debug', False)
@@ -65,27 +105,93 @@ def get_plan(task_params: dict):
 
     return json.dumps(plan_result)
 
-if __name__ == "__main__":
-    personas = [
-        "Isabella Rodriguez",
-        "Maria Lopez",
-        "Klaus Mueller"
-    ]
+
+def get_complete_plan_chat(task_params: dict):
+    persona_name = task_params["persona_name"]
+    sims_folder = task_params["sims_folder"]
+    all_utt = task_params["all_utt"]
+    convo_length = task_params["convo_length"]
+    target_persona_scratch = task_params["target_persona_scratch"]
+    exists = _check_persona(persona_name)
+
+    if not exists:
+        res = {
+            "error": f"Persona {persona_name} not found. Please choose from {ALL_PERSONAS}"
+        }
+        return json.dumps(res)
     
-    personas_folder = f"/Users/arshath/play/playground/gen_agents/storage_and_statics/storage/July1_the_ville_isabella_maria_klaus-step-3-8/personas"
+    personals_folder = f"{os.getenv('BASE_OUTPUT_DIR')}/{sims_folder}/{persona_name}"
+    persona = Persona(persona_name, personals_folder)
 
-    personas_dict = {}
-    for persona in personas:
-        persona_folder = f"{personas_folder}/{persona}"
-        persona = Persona(persona, persona_folder)
-        personas_dict[persona.name] = dict_to_scratch(persona.scratch.to_dict())
+    persona = _chat_react(
+        persona=persona,
+        target_persona_scratch=target_persona_scratch,
+        all_utt=all_utt,
+        convo_length=convo_length,
+        sims_folder=sims_folder,
+        init_persona_name=persona_name
+    )
 
-    task_params = {
-        "init_persona_name": "Isabella Rodriguez",
-        "personas": json.dumps(personas_dict, cls=DateTimeEncoder),
-        "curr_tile": "1,1",
-        "curr_time": datetime.now(),
-        "retrieved": json.dumps({}),
-        "debug": True
-    }
-    print(get_plan(task_params))
+    if persona.scratch.act_event[1] != "chat with":
+        persona.scratch.chatting_with = None
+        persona.scratch.chat = None
+        persona.scratch.chatting_end_time = None
+
+    curr_persona_chat_buffer = persona.scratch.chatting_with_buffer
+    for persona_name, buffer_count in curr_persona_chat_buffer.items():
+        if persona_name != persona.scratch.chatting_with:
+            persona.scratch.chatting_with_buffer[persona_name] -= 1
+
+    persona.scratch.save(f"{os.getenv('BASE_OUTPUT_DIR')}/{sims_folder}/{persona_name}/bootstrap_memory/scratch.json")
+    persona.s_mem.save(f"{os.getenv('BASE_OUTPUT_DIR')}/{sims_folder}/{persona_name}/bootstrap_memory/spatial_memory.json")
+    persona.a_mem.save(f"{os.getenv('BASE_OUTPUT_DIR')}/{sims_folder}/{persona_name}/bootstrap_memory/associative_memory")
+
+    return json.dumps(persona.scratch.act_address)
+
+
+def get_complete_plan_wait(task_params: dict):
+    sims_folder = task_params["sims_folder"]
+    init_persona_name = task_params["init_persona_name"]
+    personals_folder = f"{os.getenv('BASE_OUTPUT_DIR')}/{sims_folder}/{init_persona_name}"
+    persona = Persona(init_persona_name, personals_folder)
+    reaction_mode = task_params["reaction_mode"]
+    persona = _wait_react(persona, reaction_mode)
+    
+    if persona.scratch.act_event[1] != "chat with":
+        persona.scratch.chatting_with = None
+        persona.scratch.chat = None
+        persona.scratch.chatting_end_time = None
+
+    curr_persona_chat_buffer = persona.scratch.chatting_with_buffer
+    for persona_name, buffer_count in curr_persona_chat_buffer.items():
+        if persona_name != persona.scratch.chatting_with:
+            persona.scratch.chatting_with_buffer[persona_name] -= 1
+
+    persona.scratch.save(f"{os.getenv('BASE_OUTPUT_DIR')}/{sims_folder}/{init_persona_name}/bootstrap_memory/scratch.json")
+    persona.s_mem.save(f"{os.getenv('BASE_OUTPUT_DIR')}/{sims_folder}/{init_persona_name}/bootstrap_memory/spatial_memory.json")
+    persona.a_mem.save(f"{os.getenv('BASE_OUTPUT_DIR')}/{sims_folder}/{init_persona_name}/bootstrap_memory/associative_memory")
+
+    return json.dumps(persona.scratch.act_address)
+
+
+def get_complete_plan_no_reaction(task_params: dict):
+    sims_folder = task_params["sims_folder"]
+    init_persona_name = task_params["init_persona_name"]
+    personals_folder = f"{os.getenv('BASE_OUTPUT_DIR')}/{sims_folder}/{init_persona_name}"
+    persona = Persona(init_persona_name, personals_folder)
+
+    if persona.scratch.act_event[1] != "chat with":
+        persona.scratch.chatting_with = None
+        persona.scratch.chat = None
+        persona.scratch.chatting_end_time = None
+
+    curr_persona_chat_buffer = persona.scratch.chatting_with_buffer
+    for persona_name, buffer_count in curr_persona_chat_buffer.items():
+        if persona_name != persona.scratch.chatting_with:
+            persona.scratch.chatting_with_buffer[persona_name] -= 1
+
+    persona.scratch.save(f"{os.getenv('BASE_OUTPUT_DIR')}/{sims_folder}/{init_persona_name}/bootstrap_memory/scratch.json")
+    persona.s_mem.save(f"{os.getenv('BASE_OUTPUT_DIR')}/{sims_folder}/{init_persona_name}/bootstrap_memory/spatial_memory.json")
+    persona.a_mem.save(f"{os.getenv('BASE_OUTPUT_DIR')}/{sims_folder}/{init_persona_name}/bootstrap_memory/associative_memory")
+
+    return json.dumps(persona.scratch.act_address)

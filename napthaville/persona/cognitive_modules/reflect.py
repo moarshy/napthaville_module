@@ -279,3 +279,4 @@ def reflect(persona):
                 thought_embedding_pair,
                 evidence,
             )
+    return persona

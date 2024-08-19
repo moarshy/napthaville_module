@@ -1,43 +1,52 @@
 import json
+import os
+from datetime import datetime
 from napthaville.persona.cognitive_modules.perceive import perceive
 from napthaville.persona.cognitive_modules.retrieve import retrieve
 from napthaville.maze import Maze
 from napthaville.persona.persona import Persona
 from napthaville_module.utils import (
-    PERSONAS_FOLDER,
     MAZE_FOLDER,
     ALL_PERSONAS,
-    _check_persona
+    _check_persona,
+    dict_to_scratch,
+    retrieve_maze_json_from_ipfs
 )
 
-def get_perceive_retrieve(task_params: dict):
-    debug = task_params.get('debug', False)
-    if debug:
-        PERSONAS_FOLDER = '/Users/arshath/play/playground/gen_agents/storage_and_statics/storage/July1_the_ville_isabella_maria_klaus-step-3-1/personas'
-        MAZE_FOLDER = '/Users/arshath/play/playground/gen_agents/storage_and_statics/the_ville/matrix'
+def get_perceived_retrieved(task_params: dict):
+    # sims_folder, curr_tile, curr_time, init_persona_name, maze_ipfs_hash
+    sims_folder = task_params['sims_folder']
+    curr_tile = task_params['curr_tile']
+    curr_time = datetime.strptime(task_params['curr_time'], "%B %d, %Y, %H:%M:%S")
     
-    exists = _check_persona(task_params['init_persona_name'])
-
-    if not exists:
-        res = {
-            "error": f"Persona {task_params['init_persona_name']} not found. Please choose from {ALL_PERSONAS}"
-        } 
-        return json.dumps(res)
+    init_persona_name = task_params['init_persona_name']
+    if not _check_persona(init_persona_name):
+        return json.dumps({"error": f"Persona {init_persona_name} not found. Please choose from {ALL_PERSONAS}"})
     
-    persona_folder = f"{PERSONAS_FOLDER}/{task_params['init_persona_name']}"
-    persona = Persona(task_params["init_persona_name"], persona_folder)
-    maze = Maze('maze', MAZE_FOLDER)
+    persona_folder = f"{os.getenv('BASE_OUTPUT_DIR')}/{sims_folder}/{init_persona_name}"
+    init_persona = Persona(init_persona_name, persona_folder)
 
-    perceived_events = perceive(persona, maze)
-    retrieved_events = retrieve(persona, perceived_events)
+    # Retrieve maze_json from IPFS
+    maze_ipfs_hash = task_params['maze_ipfs_hash']
+    maze_json = retrieve_maze_json_from_ipfs(maze_ipfs_hash)
+    maze = Maze.from_json(maze_json, MAZE_FOLDER)
 
-    return json.dumps(retrieved_events)
+    init_persona.scratch.curr_tile = curr_tile
 
+    new_day = (not init_persona.scratch.curr_time or 
+                init_persona.scratch.curr_time.date() != curr_time.date())
 
+    init_persona.scratch.curr_time = curr_time
 
-if __name__ == "__main__":
-    task_params = {
-        "init_persona_name": "Isabella Rodriguez",
-        "debug": True
-    }
-    print(get_perceive_retrieve(task_params))
+    perceived = perceive(persona=init_persona, maze=maze)
+    retrieved = retrieve(persona=init_persona, perceived=perceived)
+
+    init_persona.scratch.save(f"{os.getenv('BASE_OUTPUT_DIR')}/{sims_folder}/{init_persona_name}/bootstrap_memory/scratch.json")
+    init_persona.s_mem.save(f"{os.getenv('BASE_OUTPUT_DIR')}/{sims_folder}/{init_persona_name}/bootstrap_memory/spatial_memory.json")
+    init_persona.a_mem.save(f"{os.getenv('BASE_OUTPUT_DIR')}/{sims_folder}/{init_persona_name}/bootstrap_memory/associative_memory")
+
+    return json.dumps({
+        "retrieved": retrieved,
+        'new_day': new_day,
+        'curr_time': curr_time.strftime("%B %d, %Y, %H:%M:%S")
+    })
