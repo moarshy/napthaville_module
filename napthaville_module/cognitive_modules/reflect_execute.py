@@ -5,7 +5,7 @@ from napthaville.persona.cognitive_modules.reflect import reflect
 from napthaville.persona.cognitive_modules.execute import execute
 from napthaville_module.utils import (
     retrieve_maze_json_from_ipfs,
-    save_maze_json_to_ipfs
+    upload_maze_json_to_ipfs
 )
 from napthaville.maze import Maze
 
@@ -37,7 +37,7 @@ def get_reflect_execute(task_params: dict):
     persona.a_mem.save(f"{os.getenv('BASE_OUTPUT_DIR')}/{sims_folder}/{init_persona_name}/bootstrap_memory/associative_memory")
 
     maze_json = maze.to_json()
-    maze_ipfs_hash = save_maze_json_to_ipfs(maze_json)
+    maze_ipfs_hash = upload_maze_json_to_ipfs(maze_json)
     
 
     return json.dumps({
