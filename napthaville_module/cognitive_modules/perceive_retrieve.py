@@ -9,7 +9,6 @@ from napthaville_module.utils import (
     MAZE_FOLDER,
     ALL_PERSONAS,
     _check_persona,
-    dict_to_scratch,
     retrieve_maze_json_from_ipfs
 )
 
