@@ -47,10 +47,14 @@ def get_reaction_mode(task_params: dict):
     persona.s_mem.save(f"{os.getenv('BASE_OUTPUT_DIR')}/{sims_folder}/{init_persona_name}/bootstrap_memory/spatial_memory.json")
     persona.a_mem.save(f"{os.getenv('BASE_OUTPUT_DIR')}/{sims_folder}/{init_persona_name}/bootstrap_memory/associative_memory")    
 
-    return {
+    # return {
+    #     "reaction_mode": reaction_mode,
+    #     "focused_event": focused_event.to_dict() if focused_event else False
+    # }
+    return json.dumps({
         "reaction_mode": reaction_mode,
         "focused_event": focused_event.to_dict() if focused_event else False
-    }
+        })
 
 def json_to_conceptnodes(retrieved_json):
     """Convert the JSON representation back to a dictionary with ConceptNode objects."""
