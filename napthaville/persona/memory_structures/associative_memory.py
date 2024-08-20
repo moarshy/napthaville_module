@@ -9,8 +9,7 @@ agents paper.
 """
 
 import json
-import datetime
-
+from datetime import datetime
 
 class ConceptNode:
     def __init__(
@@ -121,12 +120,12 @@ class AssociativeMemory:
             node_type = node_details["type"]
             depth = node_details["depth"]
 
-            created = datetime.datetime.strptime(
+            created = datetime.strptime(
                 node_details["created"], "%Y-%m-%d %H:%M:%S"
             )
             expiration = None
             if node_details["expiration"]:
-                expiration = datetime.datetime.strptime(
+                expiration = datetime.strptime(
                     node_details["expiration"], "%Y-%m-%d %H:%M:%S"
                 )
 
