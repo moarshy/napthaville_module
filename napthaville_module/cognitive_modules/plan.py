@@ -5,6 +5,7 @@ from napthaville.persona.cognitive_modules.plan import plan as plan_function
 from napthaville.persona.cognitive_modules.plan import _wait_react, _chat_react
 from napthaville.maze import Maze
 from napthaville.persona.persona import Persona
+from napthaville.persona.memory_structures.associative_memory import ConceptNode
 from napthaville.utils import dict_to_scratch, DateTimeEncoder
 from napthaville_module.utils import (
     MAZE_FOLDER,
