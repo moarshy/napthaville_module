@@ -14,40 +14,37 @@ from datetime import datetime
 class ConceptNode:
     def __init__(
         self,
-        node_id,
-        node_count,
-        type_count,
-        node_type,
-        depth,
-        created,
-        expiration,
-        s,
-        p,
-        o,
-        description,
-        embedding_key,
-        poignancy,
-        keywords,
-        filling,
+        node_id=None,
+        node_count=None,
+        type_count=None,
+        type=None,
+        depth=None,
+        created=None,
+        expiration=None,
+        subject=None,
+        predicate=None,
+        object=None,
+        description=None,
+        embedding_key=None,
+        poignancy=None,
+        keywords=None,
+        filling=None
     ):
         self.node_id = node_id
         self.node_count = node_count
         self.type_count = type_count
-        self.type = node_type  # thought / event / chat
+        self.type = type
         self.depth = depth
-
         self.created = created
         self.expiration = expiration
-        self.last_accessed = self.created
-
-        self.subject = s
-        self.predicate = p
-        self.object = o
-
+        self.last_accessed = self.created if self.created else None
+        self.subject = subject
+        self.predicate = predicate
+        self.object = object
         self.description = description
         self.embedding_key = embedding_key
         self.poignancy = poignancy
-        self.keywords = keywords
+        self.keywords = set(keywords) if keywords else set()
         self.filling = filling
 
     def spo_summary(self):
@@ -77,16 +74,33 @@ class ConceptNode:
     @classmethod
     def from_dict(cls, data):
         """Create a ConceptNode instance from a dictionary."""
-        # Convert ISO format strings back to datetime objects if necessary
-        for date_field in ['created', 'expiration', 'last_accessed']:
-            if isinstance(data[date_field], str):
-                data[date_field] = datetime.fromisoformat(data[date_field])
+        # Define the expected parameters
+        expected_params = [
+            'node_id', 'node_count', 'type_count', 'node_type', 'depth',
+            'created', 'expiration', 's', 'p', 'o', 'description',
+            'embedding_key', 'poignancy', 'keywords', 'filling'
+        ]
         
-        # Convert 'node_type' back to 'type' for the constructor
-        if 'node_type' in data:
-            data['type'] = data.pop('node_type')
+        # Extract expected parameters, using None for missing values
+        filtered_data = {k: data.get(k, None) for k in expected_params}
         
-        return cls(**data)
+        # Handle specific conversions
+        for date_field in ['created', 'expiration']:
+            if isinstance(filtered_data[date_field], str):
+                filtered_data[date_field] = datetime.fromisoformat(filtered_data[date_field])
+        
+        # Convert 'node_type' to 'type'
+        filtered_data['type'] = filtered_data.pop('node_type')
+        
+        # Convert 's', 'p', 'o' to 'subject', 'predicate', 'object'
+        for old, new in [('s', 'subject'), ('p', 'predicate'), ('o', 'object')]:
+            filtered_data[new] = filtered_data.pop(old)
+        
+        # Ensure 'keywords' is a set
+        if filtered_data['keywords'] is not None and not isinstance(filtered_data['keywords'], set):
+            filtered_data['keywords'] = set(filtered_data['keywords'])
+        
+        return cls(**filtered_data)
 
     def to_json(self):
         """Convert the ConceptNode instance to a JSON string."""
