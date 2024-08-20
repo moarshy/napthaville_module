@@ -17,7 +17,7 @@ from napthaville_module.utils import (
 
 
 def get_personal_info(task_params: dict):
-    persona_name = task_params["persona_name"]
+    persona_name = task_params["init_persona_name"]
     exists = _check_persona(persona_name)
 
     if not exists:

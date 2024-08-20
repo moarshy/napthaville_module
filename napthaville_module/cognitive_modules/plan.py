@@ -107,7 +107,7 @@ def get_plan(task_params: dict):
 
 
 def get_complete_plan_chat(task_params: dict):
-    persona_name = task_params["persona_name"]
+    persona_name = task_params["init_persona_name"]
     sims_folder = task_params["sims_folder"]
     all_utt = task_params["all_utt"]
     convo_length = task_params["convo_length"]
