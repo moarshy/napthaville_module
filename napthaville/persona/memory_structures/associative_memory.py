@@ -12,24 +12,9 @@ import json
 from datetime import datetime
 
 class ConceptNode:
-    def __init__(
-        self,
-        node_id=None,
-        node_count=None,
-        type_count=None,
-        type=None,
-        depth=None,
-        created=None,
-        expiration=None,
-        subject=None,
-        predicate=None,
-        object=None,
-        description=None,
-        embedding_key=None,
-        poignancy=None,
-        keywords=None,
-        filling=None
-    ):
+    def __init__(self, node_id=None, node_count=None, type_count=None, type=None, depth=None,
+                created=None, expiration=None, s=None, p=None, o=None, description=None,
+                embedding_key=None, poignancy=None, keywords=None, filling=None):
         self.node_id = node_id
         self.node_count = node_count
         self.type_count = type_count
@@ -37,15 +22,15 @@ class ConceptNode:
         self.depth = depth
         self.created = created
         self.expiration = expiration
-        self.last_accessed = self.created if self.created else None
-        self.subject = subject
-        self.predicate = predicate
-        self.object = object
+        self.last_accessed = created
+        self.subject = s
+        self.predicate = p
+        self.object = o
         self.description = description
         self.embedding_key = embedding_key
         self.poignancy = poignancy
         self.keywords = set(keywords) if keywords else set()
-        self.filling = filling
+        self.filling = filling if filling else []
 
     def spo_summary(self):
         return (self.subject, self.predicate, self.object)
@@ -73,34 +58,25 @@ class ConceptNode:
     
     @classmethod
     def from_dict(cls, data):
-        """Create a ConceptNode instance from a dictionary."""
-        # Define the expected parameters
-        expected_params = [
-            'node_id', 'node_count', 'type_count', 'node_type', 'depth',
-            'created', 'expiration', 's', 'p', 'o', 'description',
-            'embedding_key', 'poignancy', 'keywords', 'filling'
-        ]
-        
-        # Extract expected parameters, using None for missing values
-        filtered_data = {k: data.get(k, None) for k in expected_params}
-        
-        # Handle specific conversions
-        for date_field in ['created', 'expiration']:
-            if isinstance(filtered_data[date_field], str):
-                filtered_data[date_field] = datetime.fromisoformat(filtered_data[date_field])
-        
-        # Convert 'node_type' to 'type'
-        filtered_data['type'] = filtered_data.pop('node_type')
-        
-        # Convert 's', 'p', 'o' to 'subject', 'predicate', 'object'
-        for old, new in [('s', 'subject'), ('p', 'predicate'), ('o', 'object')]:
-            filtered_data[new] = filtered_data.pop(old)
-        
-        # Ensure 'keywords' is a set
-        if filtered_data['keywords'] is not None and not isinstance(filtered_data['keywords'], set):
-            filtered_data['keywords'] = set(filtered_data['keywords'])
-        
-        return cls(**filtered_data)
+        if not data:
+            return None
+        return cls(
+            node_id=data.get('node_id'),
+            node_count=data.get('node_count'),
+            type_count=data.get('type_count'),
+            type=data.get('node_type'),  # Note: changed from 'type' to 'node_type'
+            depth=data.get('depth'),
+            created=datetime.fromisoformat(data['created']) if data.get('created') else None,
+            expiration=datetime.fromisoformat(data['expiration']) if data.get('expiration') else None,
+            s=data.get('subject'),  # Note: changed from 's' to 'subject'
+            p=data.get('predicate'),  # Note: changed from 'p' to 'predicate'
+            o=data.get('object'),  # Note: changed from 'o' to 'object'
+            description=data.get('description'),
+            embedding_key=data.get('embedding_key'),
+            poignancy=data.get('poignancy'),
+            keywords=set(data.get('keywords', [])),
+            filling=data.get('filling', [])
+        )
 
     def to_json(self):
         """Convert the ConceptNode instance to a JSON string."""
