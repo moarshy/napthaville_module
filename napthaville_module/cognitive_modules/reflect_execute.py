@@ -5,7 +5,8 @@ from napthaville.persona.cognitive_modules.reflect import reflect
 from napthaville.persona.cognitive_modules.execute import execute
 from napthaville_module.utils import (
     retrieve_maze_json_from_ipfs,
-    upload_maze_json_to_ipfs
+    upload_maze_json_to_ipfs,
+    MAZE_FOLDER
 )
 from napthaville.maze import Maze
 
@@ -20,7 +21,7 @@ def get_reflect_execute(task_params: dict):
 
     maze_ipfs_hash = task_params["maze_ipfs_hash"]
     maze_json = retrieve_maze_json_from_ipfs(maze_ipfs_hash)
-    maze = Maze.from_json(maze_json)
+    maze = Maze.from_json(maze_json, MAZE_FOLDER)
 
     persona = reflect(persona)
 
@@ -38,7 +39,6 @@ def get_reflect_execute(task_params: dict):
 
     maze_json = maze.to_json()
     maze_ipfs_hash = upload_maze_json_to_ipfs(maze_json)
-    
 
     return json.dumps({
         "execution": execution,
