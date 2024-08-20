@@ -59,7 +59,7 @@ class ConceptNode:
             "node_id": self.node_id,
             "node_count": self.node_count,
             "type_count": self.type_count,
-            "type": self.type,
+            "node_type": self.type,  # Change 'type' to 'node_type'
             "depth": self.depth,
             "created": self.created.isoformat() if isinstance(self.created, datetime) else self.created,
             "expiration": self.expiration.isoformat() if isinstance(self.expiration, datetime) else self.expiration,
@@ -70,13 +70,23 @@ class ConceptNode:
             "description": self.description,
             "embedding_key": self.embedding_key,
             "poignancy": self.poignancy,
-            "keywords": list(self.keywords),
+            "keywords": list(self.keywords),  # Convert set to list
             "filling": self.filling
         }
     
     @classmethod
-    def from_dict(cls, dict):
-        return cls(**dict)
+    def from_dict(cls, data):
+        """Create a ConceptNode instance from a dictionary."""
+        # Convert ISO format strings back to datetime objects if necessary
+        for date_field in ['created', 'expiration', 'last_accessed']:
+            if isinstance(data[date_field], str):
+                data[date_field] = datetime.fromisoformat(data[date_field])
+        
+        # Convert 'node_type' back to 'type' for the constructor
+        if 'node_type' in data:
+            data['type'] = data.pop('node_type')
+        
+        return cls(**data)
 
     def to_json(self):
         """Convert the ConceptNode instance to a JSON string."""
