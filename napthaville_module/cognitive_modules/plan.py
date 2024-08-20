@@ -16,7 +16,8 @@ from napthaville.persona.cognitive_modules.plan import _long_term_planning, _det
 
 
 def get_reaction_mode(task_params: dict):
-    retrieved = json.loads(task_params['retrieved'])
+    retrieved_json = json.loads(task_params['retrieved'])
+    retrieved = json_to_conceptnodes(retrieved_json)
     new_day = task_params['new_day']
     maze_ipfs_hash = task_params['maze_ipfs_hash']
     sims_folder = task_params['sims_folder']
@@ -33,7 +34,7 @@ def get_reaction_mode(task_params: dict):
         _determine_action(persona, maze, f"{persona_folder}/bootstrap_memory")
 
     focused_event = False
-    if retrieved.keys():
+    if retrieved:
         focused_event = _choose_retrieved(persona, retrieved)
     
     if focused_event:
@@ -47,8 +48,19 @@ def get_reaction_mode(task_params: dict):
 
     return {
         "reaction_mode": reaction_mode,
-        "focused_event": focused_event.to_json() if focused_event else False
+        "focused_event": focused_event.to_dict() if focused_event else False
     }
+
+def json_to_conceptnodes(retrieved_json):
+    """Convert the JSON representation back to a dictionary with ConceptNode objects."""
+    retrieved = {}
+    for event_desc, event_data in retrieved_json.items():
+        retrieved[event_desc] = {
+            "curr_event": ConceptNode.from_dict(event_data["curr_event"]),
+            "events": [ConceptNode.from_dict(e) for e in event_data["events"]],
+            "thoughts": [ConceptNode.from_dict(t) for t in event_data["thoughts"]]
+        }
+    return retrieved
 
 
 def get_plan(task_params: dict):

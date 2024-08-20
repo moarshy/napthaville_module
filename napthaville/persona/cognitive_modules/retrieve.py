@@ -31,12 +31,12 @@ def retrieve(persona, perceived):
     retrieved = dict()
     for event in perceived:
         retrieved[event.description] = dict()
-        retrieved[event.description]["curr_event"] = event
+        # This line is where we need to make a change:
+        retrieved[event.description]["curr_event"] = event.to_dict()  # Convert to dict here
 
         relevant_events = persona.a_mem.retrieve_relevant_events(
             event.subject, event.predicate, event.object
         )
-        # convert the set to a list
         relevant_events = list(relevant_events)
         relevant_events = [i.to_dict() for i in relevant_events if isinstance(i, ConceptNode)]
 
