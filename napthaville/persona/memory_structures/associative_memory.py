@@ -70,7 +70,7 @@ class ConceptNode:
             "description": self.description,
             "embedding_key": self.embedding_key,
             "poignancy": self.poignancy,
-            "keywords": self.keywords,
+            "keywords": list(self.keywords),
             "filling": self.filling
         }
     
