@@ -37,7 +37,7 @@ def retrieve(persona, perceived):
             event.subject, event.predicate, event.object
         )
         # Convert set of ConceptNodes to list of dicts
-        relevant_events = [node.to_dict() for node in relevant_events]
+        relevant_events = [node.to_dict() for node in list(relevant_events)]
 
         retrieved[event.description]["events"] = relevant_events
 
@@ -45,7 +45,7 @@ def retrieve(persona, perceived):
             event.subject, event.predicate, event.object
         )
         # Convert set of ConceptNodes to list of dicts
-        relevant_thoughts = [node.to_dict() for node in relevant_thoughts]
+        relevant_thoughts = [node.to_dict() for node in list(relevant_thoughts)]
         
         retrieved[event.description]["thoughts"] = relevant_thoughts
 
