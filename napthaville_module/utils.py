@@ -1,14 +1,17 @@
 import os 
 import json
 import logging
+import backoff
 import ipfshttpclient
 from typing import Dict, Any
+from requests.exceptions import ConnectionError, ReadTimeout
 
 IPFS_GATEWAY_URL = os.getenv('IPFS_GATEWAY_URL', None)
 BASE_OUTPUT_DIR = os.getenv("BASE_OUTPUT_DIR", None)
 PERSONAS_FOLDER = f"{BASE_OUTPUT_DIR}/napthaville/step-3-3/personas"
 MAZE_FOLDER = f"{BASE_OUTPUT_DIR}/napthaville/the_ville/matrix"
-
+MAX_TRIES = 5 
+MAX_TIME = 180
 
 ALL_PERSONAS = [
     "Isabella Rodriguez",
@@ -34,9 +37,17 @@ def get_logger():
     return logger
 
 
+@backoff.on_exception(backoff.expo,
+                      (ipfshttpclient.exceptions.ErrorResponse,
+                       ipfshttpclient.exceptions.TimeoutError,
+                       ConnectionError,
+                       ReadTimeout),
+                      max_tries=MAX_TRIES,
+                      max_time=MAX_TIME)
 def upload_maze_json_to_ipfs(maze_json: Dict[str, Any]) -> str:
     """
     Upload maze_json to IPFS and return the IPFS hash.
+    Includes exponential backoff and retry mechanism.
     
     Args:
     maze_json (Dict[str, Any]): The maze JSON to upload
@@ -54,14 +65,24 @@ def upload_maze_json_to_ipfs(maze_json: Dict[str, Any]) -> str:
             
             # Return the IPFS hash
             return res
+    except (ipfshttpclient.exceptions.ErrorResponse, ipfshttpclient.exceptions.TimeoutError) as e:
+        print(f"Error uploading to IPFS (will retry): {str(e)}")
+        raise
     except Exception as e:
-        print(f"Error uploading to IPFS: {str(e)}")
+        print(f"Unexpected error uploading to IPFS: {str(e)}")
         raise
 
-
+@backoff.on_exception(backoff.expo,
+                      (ipfshttpclient.exceptions.ErrorResponse,
+                       ipfshttpclient.exceptions.TimeoutError,
+                       ConnectionError,
+                       ReadTimeout),
+                      max_tries=MAX_TRIES,
+                      max_time=MAX_TIME)
 def retrieve_maze_json_from_ipfs(ipfs_hash: str) -> Dict[str, Any]:
     """
     Retrieve maze_json from IPFS using the provided hash.
+    Includes exponential backoff and retry mechanism.
     
     Args:
     ipfs_hash (str): The IPFS hash of the maze_json to retrieve
@@ -78,6 +99,9 @@ def retrieve_maze_json_from_ipfs(ipfs_hash: str) -> Dict[str, Any]:
             maze_json = json.loads(maze_json_str)
             
             return maze_json
+    except (ipfshttpclient.exceptions.ErrorResponse, ipfshttpclient.exceptions.TimeoutError) as e:
+        print(f"Error retrieving from IPFS (will retry): {str(e)}")
+        raise
     except Exception as e:
-        print(f"Error retrieving from IPFS: {str(e)}")
+        print(f"Unexpected error retrieving from IPFS: {str(e)}")
         raise

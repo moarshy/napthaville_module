@@ -1,5 +1,6 @@
 import json
 import os
+import logging
 from datetime import datetime
 from napthaville.persona.cognitive_modules.perceive import perceive
 from napthaville.persona.cognitive_modules.retrieve import retrieve
@@ -11,6 +12,11 @@ from napthaville_module.utils import (
     _check_persona,
     retrieve_maze_json_from_ipfs
 )
+
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
 
 def get_perceived_retrieved(task_params: dict):
     # sims_folder, curr_tile, curr_time, init_persona_name, maze_ipfs_hash
@@ -38,6 +44,7 @@ def get_perceived_retrieved(task_params: dict):
     init_persona.scratch.curr_time = curr_time
 
     perceived = perceive(persona=init_persona, maze=maze)
+    logger.info(f"Perceived data for {init_persona_name}: {perceived}")
     retrieved = retrieve(persona=init_persona, perceived=perceived)
 
     init_persona.scratch.save(f"{os.getenv('BASE_OUTPUT_DIR')}/{sims_folder}/{init_persona_name}/bootstrap_memory/scratch.json")
