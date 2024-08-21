@@ -1159,7 +1159,7 @@ def plan(persona, maze, personas, new_day, retrieved):
 
     # PART 2: If the current action has expired, we want to create a new plan.
     if persona.scratch.act_check_finished():
-        _determine_action(persona, maze)
+        (persona, maze)
 
     # PART 3: If you perceived an event that needs to be responded to (saw
     # another persona), and retrieved relevant information.

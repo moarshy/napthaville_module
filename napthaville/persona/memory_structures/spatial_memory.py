@@ -94,9 +94,17 @@ class MemoryTree:
             return ""
 
         try:
-            x = ", ".join(list(self.tree[curr_world][curr_sector][curr_arena]))
+            x = ", ".join(
+                list(self.tree[curr_world][curr_sector][curr_arena.lower().strip()])
+            )
         except:
-            x = ", ".join(list(self.tree[curr_world][curr_sector][curr_arena.lower()]))
+            x = ", ".join(
+                list(
+                    self.tree[curr_world][curr_sector][
+                        curr_arena.lower().strip()
+                    ]
+                )
+            )
         return x
 
 
