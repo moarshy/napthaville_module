@@ -93,10 +93,13 @@ def execute(persona, maze, persona_names_curr_tile, plan):
             # Retrieve the target addresses. Again, plan is an action address in its
             # string form. <maze.address_tiles> takes this and returns candidate
             # coordinates.
-            if plan not in maze.address_tiles:
-                maze.address_tiles["Johnson Park:park:park garden"]  # ERRORRRRRRR
-            else:
+            # if plan not in maze.address_tiles:
+            #     maze.address_tiles["Johnson Park:park:park garden"]  # ERRORRRRRRR
+            # else:
+            try:
                 target_tiles = maze.address_tiles[plan]
+            except:
+                target_tiles = []
 
         # There are sometimes more than one tile returned from this (e.g., a tabe
         # may stretch many coordinates). So, we sample a few here. And from that
@@ -143,6 +146,9 @@ def execute(persona, maze, persona_names_curr_tile, plan):
             elif len(curr_path) < len(path):
                 closest_target_tile = i
                 path = curr_path
+
+        if not path:
+            path = persona.scratch.planned_path
 
         # Actually setting the <planned_path> and <act_path_set>. We cut the
         # first element in the planned_path because it includes the curr_tile.

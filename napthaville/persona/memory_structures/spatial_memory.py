@@ -7,8 +7,11 @@ memory that aids in grounding their behavior in the game world.
 """
 
 import json
+import logging
 from napthaville.global_methods import check_if_file_exists
 
+
+logger = logging.getLogger(__name__)
 
 class MemoryTree:
     def __init__(self, f_saved):
@@ -90,21 +93,22 @@ class MemoryTree:
         """
         curr_world, curr_sector, curr_arena = arena.split(":")
 
+        if "Maris" in curr_arena:
+            curr_arena = curr_arena.replace("Maris", "Maria")
+
         if not curr_arena:
             return ""
 
+        logger.info(f"Tree: {self.tree}")
+        logger.info(f"curr_world: {curr_world}, curr_sector: {curr_sector}, curr_arena: {curr_arena}")
+
         try:
-            x = ", ".join(
-                list(self.tree[curr_world][curr_sector][curr_arena.lower().strip()])
-            )
+            x = ", ".join(list(self.tree[curr_world][curr_sector][curr_arena]))
         except:
-            x = ", ".join(
-                list(
-                    self.tree[curr_world][curr_sector][
-                        curr_arena.lower().strip()
-                    ]
-                )
-            )
+            try:
+                x = ", ".join(list(self.tree[curr_world][curr_sector][curr_arena.lower()]))
+            except:
+                x = ", ".join(list(self.tree[curr_world][curr_sector][curr_arena.strip()]))
         return x
 
 
