@@ -51,9 +51,19 @@ def get_reaction_mode(task_params: dict):
     #     "reaction_mode": reaction_mode,
     #     "focused_event": focused_event.to_dict() if focused_event else False
     # }
+
+    if isinstance(focused_event, ConceptNode):
+        focused_event = focused_event.to_dict()
+    elif isinstance(focused_event, dict):
+        for key, value in focused_event.items():
+            if isinstance(value, ConceptNode):
+                focused_event[key] = value.to_dict()
+    elif isinstance(value, list):
+        focused_event[key] = [v.to_dict() for v in value if isinstance(v, ConceptNode)]
+
     return json.dumps({
         "reaction_mode": reaction_mode,
-        "focused_event": focused_event.to_dict() if focused_event else False
+        "focused_event": focused_event
         })
 
 def json_to_conceptnodes(retrieved_json):
