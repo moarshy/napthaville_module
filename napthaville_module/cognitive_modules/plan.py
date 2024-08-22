@@ -1,12 +1,12 @@
 import os
 import json
-from datetime import datetime
+import logging
 from napthaville.persona.cognitive_modules.plan import plan as plan_function
 from napthaville.persona.cognitive_modules.plan import _wait_react, _chat_react
 from napthaville.maze import Maze
 from napthaville.persona.persona import Persona
 from napthaville.persona.memory_structures.associative_memory import ConceptNode
-from napthaville.utils import dict_to_scratch, DateTimeEncoder
+from napthaville.utils import dict_to_scratch
 from napthaville_module.utils import (
     MAZE_FOLDER,
     ALL_PERSONAS,
@@ -14,6 +14,9 @@ from napthaville_module.utils import (
     retrieve_maze_json_from_ipfs
 )
 from napthaville.persona.cognitive_modules.plan import _long_term_planning, _determine_action, _choose_retrieved, _should_react
+
+
+logger = logging.getLogger(__name__)
 
 
 def get_reaction_mode(task_params: dict):
@@ -52,12 +55,17 @@ def get_reaction_mode(task_params: dict):
     #     "focused_event": focused_event.to_dict() if focused_event else False
     # }
 
+    logger.info(f"Focused event: {focused_event}")
+    logger.info(f"Focused event type: {type(focused_event)}")
+
     if isinstance(focused_event, ConceptNode):
         focused_event = focused_event.to_dict()
     elif isinstance(focused_event, dict):
         for key, value in focused_event.items():
             if isinstance(value, ConceptNode):
                 focused_event[key] = value.to_dict()
+            elif isinstance(value, list):
+                focused_event[key] = [v.to_dict() for v in value if isinstance(v, ConceptNode)]
     elif isinstance(focused_event, list):
         focused_event = [v.to_dict() for v in focused_event if isinstance(v, ConceptNode)]
 
