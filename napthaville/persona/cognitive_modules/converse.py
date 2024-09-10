@@ -10,16 +10,16 @@ from napthaville.persona.cognitive_modules.retrieve import new_retrieve
 from napthaville.persona.prompt_template.gpt_structure2 import get_embedding
 from napthaville.persona.prompt_template.run_gpt_prompt2 import (
     run_gpt_prompt_agent_chat_summarize_ideas,  #
-    run_gpt_prompt_agent_chat, # 
-    run_gpt_prompt_generate_next_convo_line, # 
-    run_gpt_prompt_summarize_ideas, # 
-    run_gpt_prompt_generate_whisper_inner_thought, # 
-    run_gpt_prompt_event_triple, # 
-    run_gpt_prompt_event_poignancy, #
-    run_gpt_prompt_chat_poignancy, #
-    run_gpt_generate_safety_score, #
-    run_gpt_generate_iterative_chat_utt, #
-    run_gpt_prompt_agent_chat_summarize_relationship, #
+    run_gpt_prompt_agent_chat,  #
+    run_gpt_prompt_generate_next_convo_line,  #
+    run_gpt_prompt_summarize_ideas,  #
+    run_gpt_prompt_generate_whisper_inner_thought,  #
+    run_gpt_prompt_event_triple,  #
+    run_gpt_prompt_event_poignancy,  #
+    run_gpt_prompt_chat_poignancy,  #
+    run_gpt_generate_safety_score,  #
+    run_gpt_generate_iterative_chat_utt,  #
+    run_gpt_prompt_agent_chat_summarize_relationship,  #
 )
 
 
@@ -85,7 +85,7 @@ def agent_chat_v1(maze, init_persona, target_persona):
     )
     curr_context += (
         f"{init_persona.scratch.name} "
-        + f"is thinking of initating a conversation with "
+        + "is thinking of initating a conversation with "
         + f"{target_persona.scratch.name}."
     )
 
@@ -115,7 +115,14 @@ def agent_chat_v1(maze, init_persona, target_persona):
     )
 
 
-def generate_one_utterance(maze, init_persona, target_persona_name, target_persona_description, retrieved, curr_chat):
+def generate_one_utterance(
+    maze,
+    init_persona,
+    target_persona_name,
+    target_persona_description,
+    retrieved,
+    curr_chat,
+):
     # Chat version optimized for speed via batch generation
     curr_context = (
         f"{init_persona.scratch.name} "
@@ -126,18 +133,13 @@ def generate_one_utterance(maze, init_persona, target_persona_name, target_perso
     )
     curr_context += (
         f"{init_persona.scratch.name} "
-        + f"is initiating a conversation with "
+        + "is initiating a conversation with "
         + f"{target_persona_name}."
     )
 
     print("July 23 5")
     x = run_gpt_generate_iterative_chat_utt(
-        maze, 
-        init_persona, 
-        target_persona_name, 
-        retrieved, 
-        curr_context, 
-        curr_chat
+        maze, init_persona, target_persona_name, retrieved, curr_context, curr_chat
     )[0]
 
     print("July 23 6")
@@ -272,31 +274,58 @@ def generate_poig_score(persona, event_type, description):
         ]
 
 
-def load_history_via_whisper(personas, whispers):
-    for count, row in enumerate(whispers):
-        persona = personas[row[0]]
-        whisper = row[1]
+# def load_history_via_whisper(personas, whispers):
+#     for count, row in enumerate(whispers):
+#         persona = personas[row[0]]
+#         whisper = row[1]
 
-        thought = generate_inner_thought(persona, whisper)
+#         thought = generate_inner_thought(persona, whisper)
 
-        created = persona.scratch.curr_time
-        expiration = persona.scratch.curr_time + datetime.timedelta(days=30)
-        s, p, o = generate_action_event_triple(thought, persona)
-        keywords = set([s, p, o])
-        thought_poignancy = generate_poig_score(persona, "event", whisper)
-        thought_embedding_pair = (thought, get_embedding(thought))
-        persona.a_mem.add_thought(
-            created,
-            expiration,
-            s,
-            p,
-            o,
-            thought,
-            keywords,
-            thought_poignancy,
-            thought_embedding_pair,
-            None,
-        )
+#         created = persona.scratch.curr_time
+#         expiration = persona.scratch.curr_time + datetime.timedelta(days=30)
+#         s, p, o = generate_action_event_triple(thought, persona)
+#         keywords = set([s, p, o])
+#         thought_poignancy = generate_poig_score(persona, "event", whisper)
+#         thought_embedding_pair = (thought, get_embedding(thought))
+#         persona.a_mem.add_thought(
+#             created,
+#             expiration,
+#             s,
+#             p,
+#             o,
+#             thought,
+#             keywords,
+#             thought_poignancy,
+#             thought_embedding_pair,
+#             None,
+#         )
+
+
+def load_history_via_whisper(persona, whisper, curr_time):
+    persona.scratch.curr_time = curr_time
+    thought = generate_inner_thought(persona, whisper)
+    created = persona.scratch.curr_time
+    expiration = persona.scratch.curr_time + datetime.timedelta(days=30)
+    s, p, o = generate_action_event_triple(thought, persona)
+    print("s, p, o", s, p, o)
+    keywords = set([s, p, o])
+    print("keywords", keywords)
+    thought_poignancy = generate_poig_score(persona, "event", whisper)
+    print("thought_poignancy", thought_poignancy)
+    thought_embedding_pair = (thought, get_embedding(thought))
+    persona.a_mem.add_thought(
+        created,
+        expiration,
+        s,
+        p,
+        o,
+        thought,
+        keywords,
+        thought_poignancy,
+        thought_embedding_pair,
+        None,
+    )
+    persona.scratch.curr_time = None
 
 
 def open_convo_session(persona, convo_mode):

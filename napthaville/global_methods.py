@@ -6,10 +6,10 @@ Description: Contains functions used throughout my projects.
 """
 
 import csv
-import datetime as dt
 import os
 import numpy
-import shutil, errno
+import shutil
+import errno
 from os import listdir
 
 

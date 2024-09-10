@@ -8,28 +8,32 @@ Description: This defines the "Plan" module for generative agents.
 import datetime
 import math
 import random
+import os
+import logging
 
 from napthaville.persona.prompt_template.run_gpt_prompt2 import (
-    run_gpt_prompt_wake_up_hour, #
-    run_gpt_prompt_daily_plan, #
-    run_gpt_prompt_generate_hourly_schedule, #
-    run_gpt_prompt_task_decomp, #
-    run_gpt_prompt_action_sector, #
-    run_gpt_prompt_action_arena, #
-    run_gpt_prompt_action_game_object, #
-    run_gpt_prompt_pronunciatio, #
-    run_gpt_prompt_event_triple, #
-    run_gpt_prompt_act_obj_desc, #
-    run_gpt_prompt_act_obj_event_triple, #
-    run_gpt_prompt_summarize_conversation, #
-    run_gpt_prompt_decide_to_talk, # target_persona_name, target_persona_scratch
-    run_gpt_prompt_decide_to_react, # target_persona_name, target_persona_scratch
+    run_gpt_prompt_wake_up_hour,  #
+    run_gpt_prompt_daily_plan,  #
+    run_gpt_prompt_generate_hourly_schedule,  #
+    run_gpt_prompt_task_decomp,  #
+    run_gpt_prompt_action_sector,  #
+    run_gpt_prompt_action_arena,  #
+    run_gpt_prompt_action_game_object,  #
+    run_gpt_prompt_pronunciatio,  #
+    run_gpt_prompt_event_triple,  #
+    run_gpt_prompt_act_obj_desc,  #
+    run_gpt_prompt_act_obj_event_triple,  #
+    run_gpt_prompt_summarize_conversation,  #
+    run_gpt_prompt_decide_to_talk,  # target_persona_name, target_persona_scratch
+    run_gpt_prompt_decide_to_react,  # target_persona_name, target_persona_scratch
     run_gpt_prompt_new_decomp_schedule,
 )
 from napthaville.persona.prompt_template.gpt_structure2 import ChatGPT_single_request
 from napthaville.persona.cognitive_modules.retrieve import new_retrieve, get_embedding
 from napthaville.persona.cognitive_modules.converse import agent_chat_v2
+from napthaville.persona.memory_structures.scratch import Scratch
 
+logger = logging.getLogger(__name__)
 
 ##############################################################################
 # CHAPTER 2: Generate
@@ -343,10 +347,7 @@ def generate_convo_summary(persona, convo):
 
 
 def generate_decide_to_talk(
-    init_persona, 
-    target_persona_name, 
-    target_persona_scratch,
-    retrieved
+    init_persona, target_persona_name, target_persona_scratch, retrieved
 ):
     x = run_gpt_prompt_decide_to_talk(
         persona=init_persona,
@@ -354,6 +355,7 @@ def generate_decide_to_talk(
         target_persona_scratch=target_persona_scratch,
         retrieved=retrieved,
     )[0]
+    print("Decide to talk: ", x)
     print("GNS FUNCTION: <generate_decide_to_talk>")
 
     if x == "yes":
@@ -362,7 +364,9 @@ def generate_decide_to_talk(
         return False
 
 
-def generate_decide_to_react(init_persona, target_persona_name, target_persona_scratch, retrieved):
+def generate_decide_to_react(
+    init_persona, target_persona_name, target_persona_scratch, retrieved
+):
     print("GNS FUNCTION: <generate_decide_to_react>")
     return run_gpt_prompt_decide_to_react(
         persona=init_persona,
@@ -375,106 +379,148 @@ def generate_decide_to_react(init_persona, target_persona_name, target_persona_s
 def generate_new_decomp_schedule(
     persona, inserted_act, inserted_act_dur, start_hour, end_hour
 ):
-    # Step 1: Setting up the core variables for the function.
-    # <p> is the persona whose schedule we are editing right now.
-    p = persona
-    # <today_min_pass> indicates the number of minutes that have passed today.
-    today_min_pass = (
-        int(p.scratch.curr_time.hour) * 60 + int(p.scratch.curr_time.minute) + 1
-    )
-
-    # Step 2: We need to create <main_act_dur> and <truncated_act_dur>.
-    # These are basically a sub-component of <f_daily_schedule> of the persona,
-    # but focusing on the current decomposition.
-    # Here is an example for <main_act_dur>:
-    # ['wakes up and completes her morning routine (wakes up at 6am)', 5]
-    # ['wakes up and completes her morning routine (wakes up at 6am)', 5]
-    # ['wakes up and completes her morning routine (uses the restroom)', 5]
-    # ['wakes up and completes her morning routine (washes her ...)', 10]
-    # ['wakes up and completes her morning routine (makes her bed)', 5]
-    # ['wakes up and completes her morning routine (eats breakfast)', 15]
-    # ['wakes up and completes her morning routine (gets dressed)', 10]
-    # ['wakes up and completes her morning routine (leaves her ...)', 5]
-    # ['wakes up and completes her morning routine (starts her ...)', 5]
-    # ['preparing for her day (waking up at 6am)', 5]
-    # ['preparing for her day (making her bed)', 5]
-    # ['preparing for her day (taking a shower)', 15]
-    # ['preparing for her day (getting dressed)', 5]
-    # ['preparing for her day (eating breakfast)', 10]
-    # ['preparing for her day (brushing her teeth)', 5]
-    # ['preparing for her day (making coffee)', 5]
-    # ['preparing for her day (checking her email)', 5]
-    # ['preparing for her day (starting to work on her painting)', 5]
-    #
-    # And <truncated_act_dur> concerns only until where an event happens.
-    # ['wakes up and completes her morning routine (wakes up at 6am)', 5]
-    # ['wakes up and completes her morning routine (wakes up at 6am)', 2]
-    main_act_dur = []
-    truncated_act_dur = []
-    dur_sum = 0  # duration sum
-    count = 0  # enumerate count
-    truncated_fin = False
-
-    print("DEBUG::: ", persona.scratch.name)
-    for act, dur in p.scratch.f_daily_schedule:
-        if (dur_sum >= start_hour * 60) and (dur_sum < end_hour * 60):
-            main_act_dur += [[act, dur]]
-            if dur_sum <= today_min_pass:
-                truncated_act_dur += [[act, dur]]
-            elif dur_sum > today_min_pass and not truncated_fin:
-                # We need to insert that last act, duration list like this one:
-                # e.g., ['wakes up and completes her morning routine (wakes up...)', 2]
-                truncated_act_dur += [
-                    [p.scratch.f_daily_schedule[count][0], dur_sum - today_min_pass]
-                ]
-                truncated_act_dur[-1][-1] -= (
-                    dur_sum - today_min_pass
-                )  ######## DEC 7 DEBUG;.. is the +1 the right thing to do???
-                # truncated_act_dur[-1][-1] -= (dur_sum - today_min_pass + 1) ######## DEC 7 DEBUG;.. is the +1 the right thing to do???
-                print("DEBUG::: ", truncated_act_dur)
-
-                # truncated_act_dur[-1][-1] -= (dur_sum - today_min_pass) ######## DEC 7 DEBUG;.. is the +1 the right thing to do???
-                truncated_fin = True
-        dur_sum += dur
-        count += 1
-
-    persona_name = persona.name
-    main_act_dur = main_act_dur
-
-    x = (
-        truncated_act_dur[-1][0].split("(")[0].strip()
-        + " (on the way to "
-        + truncated_act_dur[-1][0].split("(")[-1][:-1]
-        + ")"
-    )
-    truncated_act_dur[-1][0] = x
-
-    if "(" in truncated_act_dur[-1][0]:
-        inserted_act = (
-            truncated_act_dur[-1][0].split("(")[0].strip() + " (" + inserted_act + ")"
+    if isinstance(persona, Scratch):
+        scratch = persona
+        today_min_pass = (
+            int(scratch.curr_time.hour) * 60 + int(scratch.curr_time.minute) + 1
         )
 
-    # To do inserted_act_dur+1 below is an important decision but I'm not sure
-    # if I understand the full extent of its implications. Might want to
-    # revisit.
-    truncated_act_dur += [[inserted_act, inserted_act_dur]]
-    start_time_hour = datetime.datetime(2022, 10, 31, 0, 0) + datetime.timedelta(
-        hours=start_hour
-    )
-    end_time_hour = datetime.datetime(2022, 10, 31, 0, 0) + datetime.timedelta(
-        hours=end_hour
-    )
+        main_act_dur = []
+        truncated_act_dur = []
+        dur_sum = 0
+        count = 0
+        truncated_fin = False
 
-    print("GNS FUNCTION: <generate_new_decomp_schedule>")
-    return run_gpt_prompt_new_decomp_schedule(
-        persona,
-        main_act_dur,
-        truncated_act_dur,
-        start_time_hour,
-        end_time_hour,
-        inserted_act,
-        inserted_act_dur,
-    )[0]
+        for act, dur in scratch.f_daily_schedule:
+            if (dur_sum >= start_hour * 60) and (dur_sum < end_hour * 60):
+                main_act_dur += [[act, dur]]
+
+                if dur_sum <= today_min_pass:
+                    truncated_act_dur += [[act, dur]]
+                elif dur_sum > today_min_pass and not truncated_fin:
+                    truncated_act_dur += [
+                        [scratch.f_daily_schedule[count][0], dur_sum - today_min_pass]
+                    ]
+                    truncated_act_dur[-1][-1] -= (
+                        dur_sum - today_min_pass
+                    )  ######## DEC 7 DEBUG;.. is the +1 the right thing to do???
+                    truncated_fin = True
+            dur_sum += dur
+            count += 1
+
+        persona_name = scratch.name
+        main_act_dur = main_act_dur
+
+        x = (
+            truncated_act_dur[-1][0].split("(")[0].strip()
+            + " (on the way to "
+            + truncated_act_dur[-1][0].split("(")[-1][:-1]
+            + ")"
+        )
+        truncated_act_dur[-1][0] = x
+
+        if "(" in truncated_act_dur[-1][0]:
+            inserted_act = (
+                truncated_act_dur[-1][0].split("(")[0].strip()
+                + " ("
+                + inserted_act
+                + ")"
+            )
+
+        truncated_act_dur += [[inserted_act, inserted_act_dur]]
+        start_time_hour = datetime.datetime(2022, 10, 31, 0, 0) + datetime.timedelta(
+            hours=start_hour
+        )
+        end_time_hour = datetime.datetime(2022, 10, 31, 0, 0) + datetime.timedelta(
+            hours=end_hour
+        )
+
+        print("GNS FUNCTION: <generate_new_decomp_schedule>")
+        return run_gpt_prompt_new_decomp_schedule(
+            persona,
+            main_act_dur,
+            truncated_act_dur,
+            start_time_hour,
+            end_time_hour,
+            inserted_act,
+            inserted_act_dur,
+        )[0]
+
+    else:
+        p = persona
+        today_min_pass = (
+            int(p.scratch.curr_time.hour) * 60 + int(p.scratch.curr_time.minute) + 1
+        )
+
+        main_act_dur = []
+        truncated_act_dur = []
+        dur_sum = 0  # duration sum
+        count = 0  # enumerate count
+        truncated_fin = False
+
+        print("DEBUG::: ", persona.scratch.name)
+        for act, dur in p.scratch.f_daily_schedule:
+            if (dur_sum >= start_hour * 60) and (dur_sum < end_hour * 60):
+                main_act_dur += [[act, dur]]
+                if dur_sum <= today_min_pass:
+                    truncated_act_dur += [[act, dur]]
+                elif dur_sum > today_min_pass and not truncated_fin:
+                    # We need to insert that last act, duration list like this one:
+                    # e.g., ['wakes up and completes her morning routine (wakes up...)', 2]
+                    truncated_act_dur += [
+                        [p.scratch.f_daily_schedule[count][0], dur_sum - today_min_pass]
+                    ]
+                    truncated_act_dur[-1][-1] -= (
+                        dur_sum - today_min_pass
+                    )  ######## DEC 7 DEBUG;.. is the +1 the right thing to do???
+                    # truncated_act_dur[-1][-1] -= (dur_sum - today_min_pass + 1) ######## DEC 7 DEBUG;.. is the +1 the right thing to do???
+                    print("DEBUG::: ", truncated_act_dur)
+
+                    # truncated_act_dur[-1][-1] -= (dur_sum - today_min_pass) ######## DEC 7 DEBUG;.. is the +1 the right thing to do???
+                    truncated_fin = True
+            dur_sum += dur
+            count += 1
+
+        persona_name = persona.name
+        main_act_dur = main_act_dur
+
+        x = (
+            truncated_act_dur[-1][0].split("(")[0].strip()
+            + " (on the way to "
+            + truncated_act_dur[-1][0].split("(")[-1][:-1]
+            + ")"
+        )
+        truncated_act_dur[-1][0] = x
+
+        if "(" in truncated_act_dur[-1][0]:
+            inserted_act = (
+                truncated_act_dur[-1][0].split("(")[0].strip()
+                + " ("
+                + inserted_act
+                + ")"
+            )
+
+        # To do inserted_act_dur+1 below is an important decision but I'm not sure
+        # if I understand the full extent of its implications. Might want to
+        # revisit.
+        truncated_act_dur += [[inserted_act, inserted_act_dur]]
+        start_time_hour = datetime.datetime(2022, 10, 31, 0, 0) + datetime.timedelta(
+            hours=start_hour
+        )
+        end_time_hour = datetime.datetime(2022, 10, 31, 0, 0) + datetime.timedelta(
+            hours=end_hour
+        )
+
+        print("GNS FUNCTION: <generate_new_decomp_schedule>")
+        return run_gpt_prompt_new_decomp_schedule(
+            persona,
+            main_act_dur,
+            truncated_act_dur,
+            start_time_hour,
+            end_time_hour,
+            inserted_act,
+            inserted_act_dur,
+        )[0]
 
 
 ##############################################################################
@@ -502,7 +548,7 @@ def revise_identity(persona):
     plan_prompt = statements + "\n"
     plan_prompt += f"Given the statements above, is there anything that {p_name} should remember as they plan for"
     plan_prompt += f" *{persona.scratch.curr_time.strftime('%A %B %d')}*? "
-    plan_prompt += f"If there is any scheduling information, be as specific as possible (include date, time, and location if stated in the statement)\n\n"
+    plan_prompt += "If there is any scheduling information, be as specific as possible (include date, time, and location if stated in the statement)\n\n"
     plan_prompt += f"Write the response from {p_name}'s perspective."
     plan_note = ChatGPT_single_request(plan_prompt)
     # print (plan_note)
@@ -518,7 +564,7 @@ def revise_identity(persona):
     currently_prompt += f"{p_name}'s thoughts at the end of {(persona.scratch.curr_time - datetime.timedelta(days=1)).strftime('%A %B %d')}:\n"
     currently_prompt += (plan_note + thought_note).replace("\n", "") + "\n\n"
     currently_prompt += f"It is now {persona.scratch.curr_time.strftime('%A %B %d')}. Given the above, write {p_name}'s status for {persona.scratch.curr_time.strftime('%A %B %d')} that reflects {p_name}'s thoughts at the end of {(persona.scratch.curr_time - datetime.timedelta(days=1)).strftime('%A %B %d')}. Write this in third-person talking about {p_name}."
-    currently_prompt += f"If there is any scheduling information, be as specific as possible (include date, time, and location if stated in the statement).\n\n"
+    currently_prompt += "If there is any scheduling information, be as specific as possible (include date, time, and location if stated in the statement).\n\n"
     currently_prompt += "Follow this format below:\nStatus: <new status>"
     # print ("DEBUG ;adjhfno;asdjao;asdfsidfjo;af", p_name)
     # print (currently_prompt)
@@ -531,9 +577,9 @@ def revise_identity(persona):
     daily_req_prompt = persona.scratch.get_str_iss() + "\n"
     daily_req_prompt += f"Today is {persona.scratch.curr_time.strftime('%A %B %d')}. Here is {persona.scratch.name}'s plan today in broad-strokes (with the time of the day. e.g., have a lunch at 12:00 pm, watch TV from 7 to 8 pm).\n\n"
     daily_req_prompt += (
-        f"Follow this format (the list should have 4~6 items but no more):\n"
+        "Follow this format (the list should have 4~6 items but no more):\n"
     )
-    daily_req_prompt += f"1. wake up and complete the morning routine at <time>, 2. ..."
+    daily_req_prompt += "1. wake up and complete the morning routine at <time>, 2. ..."
 
     new_daily_req = ChatGPT_single_request(daily_req_prompt)
     new_daily_req = new_daily_req.replace("\n", " ")
@@ -541,7 +587,7 @@ def revise_identity(persona):
     persona.scratch.daily_plan_req = new_daily_req
 
 
-def _long_term_planning(persona, new_day):
+def _long_term_planning(persona, new_day, save_folder):
     """
     Formulates the persona's daily long-term plan if it is the start of a new
     day. This basically has two components: first, we create the wake-up hour,
@@ -604,12 +650,15 @@ def _long_term_planning(persona, new_day):
         None,
     )
 
+    # save all memory
+    persona.save(save_folder)
+
     # print("Sleeping for 20 seconds...")
     # time.sleep(10)
     # print("Done sleeping!")
 
 
-def _determine_action(persona, maze):
+def _determine_action(persona, maze, save_folder):
     """
     Creates the next action sequence for the persona.
     The main goal of this function is to run "add_new_action" on the persona's
@@ -744,6 +793,8 @@ def _determine_action(persona, maze):
         act_obj_event,
     )
 
+    persona.save(save_folder)
+
 
 def _choose_retrieved(persona, retrieved):
     """
@@ -759,6 +810,7 @@ def _choose_retrieved(persona, retrieved):
                     ["events"] = [<ConceptNode>, ...],
                     ["thoughts"] = [<ConceptNode>, ...] }
     """
+    logger.info("_choose_retrieved")
     # Once we are done with the reflection, we might want to build a more
     # complex structure here.
 
@@ -804,95 +856,128 @@ def _should_react(persona, retrieved, personas):
       personas: A dictionary that contains all persona names as keys, and the
                 persona_scratch as dictionary values.
     """
+    logger.info("_should_react")
 
     def lets_talk(init_persona, target_persona_scratch, retrieved):
+        logger.info(f"lets_talk: {target_persona_scratch['act_address']}")
         if (
-            not target_persona_scratch['act_address']
-            or not target_persona_scratch['act_description']
+            not target_persona_scratch["act_address"]
+            or not target_persona_scratch["act_description"]
             or not init_persona.scratch.act_address
             or not init_persona.scratch.act_description
         ):
+            logger.info(
+                f"lets_talk: False. Because of missing act_address or act_description"
+            )
             return False
 
         if (
-            "sleeping" in target_persona_scratch['act_description']
+            "sleeping" in target_persona_scratch["act_description"]
             or "sleeping" in init_persona.scratch.act_description
         ):
+            logger.info(f"lets_talk: False. Because of sleeping")
             return False
 
         if init_persona.scratch.curr_time.hour == 23:
+            logger.info(f"lets_talk: False. Because of time")
             return False
 
-        if "<waiting>" in target_persona_scratch['act_address']:
+        if "<waiting>" in target_persona_scratch["act_address"]:
+            logger.info(f"lets_talk: False. Because of waiting")
             return False
 
-        if target_persona_scratch['chatting_with'] or init_persona.scratch.chatting_with:
+        if (
+            target_persona_scratch["chatting_with"]
+            or init_persona.scratch.chatting_with
+        ):
+            logger.info(f"lets_talk: False. Because of chatting")
             return False
 
-        if target_persona_scratch['name'] in init_persona.scratch.chatting_with_buffer:
-            if init_persona.scratch.chatting_with_buffer[target_persona_scratch['name']] > 0:
+        if target_persona_scratch["name"] in init_persona.scratch.chatting_with_buffer:
+            if (
+                init_persona.scratch.chatting_with_buffer[
+                    target_persona_scratch["name"]
+                ]
+                > 0
+            ):
+                logger.info(f"lets_talk: False. Because of chatting buffer")
                 return False
 
         if generate_decide_to_talk(
             init_persona=init_persona,
-            target_persona_name=target_persona_scratch['name'],
+            target_persona_name=target_persona_scratch["name"],
             target_persona_scratch=target_persona_scratch,
             retrieved=retrieved,
         ):
+            logger.info(f"lets_talk: True")
             return True
 
+        logger.info(f"lets_talk: False")
         return False
 
     def lets_react(init_persona, target_persona_scratch, retrieved):
         if (
-            not target_persona_scratch['act_address']
-            or not target_persona_scratch['act_description']
+            not target_persona_scratch["act_address"]
+            or not target_persona_scratch["act_description"]
             or not init_persona.scratch.act_address
             or not init_persona.scratch.act_description
         ):
+            logger.info(
+                f"lets_react: False. Because of missing act_address or act_description"
+            )
             return False
 
         if (
-            "sleeping" in target_persona_scratch['act_description']
+            "sleeping" in target_persona_scratch["act_description"]
             or "sleeping" in init_persona.scratch.act_description
         ):
+            logger.info(f"lets_react: False. Because of sleeping")
             return False
 
         # return False
         if init_persona.scratch.curr_time.hour == 23:
+            logger.info(f"lets_react: False. Because of time")
             return False
 
-        if "waiting" in target_persona_scratch['act_description']:
+        if "waiting" in target_persona_scratch["act_description"]:
+            logger.info(f"lets_react: False. Because of waiting")
             return False
+
         if init_persona.scratch.planned_path == []:
+            logger.info(f"lets_react: False. Because of planned_path")
             return False
 
-        if init_persona.scratch.act_address != target_persona_scratch['act_address']:
+        if init_persona.scratch.act_address != target_persona_scratch["act_address"]:
+            logger.info(f"lets_react: False. Because of act_address")
             return False
 
         react_mode = generate_decide_to_react(
             init_persona=init_persona,
-            target_persona_name=target_persona_scratch['name'],
+            target_persona_name=target_persona_scratch["name"],
             target_persona_scratch=target_persona_scratch,
             retrieved=retrieved,
         )
 
+        logger.info(f"lets_react: {react_mode}")
         if react_mode == "1":
             wait_until = (
-                target_persona_scratch['act_start_time']
-                + datetime.timedelta(minutes=target_persona_scratch['act_duration'] - 1)
+                datetime.datetime.strptime(
+                    target_persona_scratch["act_start_time"], "%Y-%m-%dT%H:%M:%S"
+                )
+                + datetime.timedelta(minutes=target_persona_scratch["act_duration"] - 1)
             ).strftime("%B %d, %Y, %H:%M:%S")
             return f"wait: {wait_until}"
         elif react_mode == "2":
             return False
-            return "do other things"
         else:
             return False  # "keep"
 
     # If the persona is chatting right now, default to no reaction
     if persona.scratch.chatting_with:
+        logger.info("_should_react: False. Because of chatting")
         return False
     if "<waiting>" in persona.scratch.act_address:
+        logger.info("_should_react: False. Because of waiting")
         return False
 
     # Recall that retrieved takes the following form:
@@ -900,20 +985,15 @@ def _should_react(persona, retrieved, personas):
     #             ["events"] = [<ConceptNode>, ...],
     #             ["thoughts"] = [<ConceptNode>, ...]}
     curr_event = retrieved["curr_event"]
+    logger.info(f"_should_react: curr_event: {curr_event.to_dict()}")
+    logger.info(f"_should_react: curr_event.subject: {curr_event.subject}")
 
     if ":" not in curr_event.subject:
         # this is a persona event.
-        if lets_talk(
-            persona, 
-            personas[curr_event.subject], 
-            retrieved
-        ):
+        logger.info(f"_should_react: lets_talk: {curr_event.subject}")
+        if lets_talk(persona, personas[curr_event.subject], retrieved):
             return f"chat with {curr_event.subject}"
-        react_mode = lets_react(
-            persona, 
-            personas[curr_event.subject], 
-            retrieved
-        )
+        react_mode = lets_react(persona, personas[curr_event.subject], retrieved)
         return react_mode
     return False
 
@@ -934,118 +1014,212 @@ def _create_react(
     act_obj_event,
     act_start_time=None,
 ):
-    p = persona
+    if isinstance(persona, dict):
+        scratch = Scratch.from_dict(persona)
 
-    min_sum = 0
-    for i in range(p.scratch.get_f_daily_schedule_hourly_org_index()):
-        min_sum += p.scratch.f_daily_schedule_hourly_org[i][1]
-    start_hour = int(min_sum / 60)
+        min_sum = 0
+        for i in range(scratch.get_f_daily_schedule_hourly_org_index()):
+            min_sum += scratch.f_daily_schedule_hourly_org[i][1]
+        start_hour = int(min_sum / 60)
 
-    if (
-        p.scratch.f_daily_schedule_hourly_org[
-            p.scratch.get_f_daily_schedule_hourly_org_index()
-        ][1]
-        >= 120
-    ):
-        end_hour = (
-            start_hour
-            + p.scratch.f_daily_schedule_hourly_org[
-                p.scratch.get_f_daily_schedule_hourly_org_index()
+        if (
+            scratch.f_daily_schedule_hourly_org[
+                scratch.get_f_daily_schedule_hourly_org_index()
             ][1]
-            / 60
-        )
-
-    elif (
-        p.scratch.f_daily_schedule_hourly_org[
-            p.scratch.get_f_daily_schedule_hourly_org_index()
-        ][1]
-        + p.scratch.f_daily_schedule_hourly_org[
-            p.scratch.get_f_daily_schedule_hourly_org_index() + 1
-        ][1]
-    ):
-        end_hour = start_hour + (
-            (
-                p.scratch.f_daily_schedule_hourly_org[
-                    p.scratch.get_f_daily_schedule_hourly_org_index()
+            >= 120
+        ):
+            end_hour = (
+                start_hour
+                + scratch.f_daily_schedule_hourly_org[
+                    scratch.get_f_daily_schedule_hourly_org_index()
                 ][1]
-                + p.scratch.f_daily_schedule_hourly_org[
-                    p.scratch.get_f_daily_schedule_hourly_org_index() + 1
-                ][1]
+                / 60
             )
-            / 60
+
+        elif (
+            scratch.f_daily_schedule_hourly_org[
+                scratch.get_f_daily_schedule_hourly_org_index()
+            ][1]
+            + scratch.f_daily_schedule_hourly_org[
+                scratch.get_f_daily_schedule_hourly_org_index() + 1
+            ][1]
+        ):
+            end_hour = start_hour + (
+                (
+                    scratch.f_daily_schedule_hourly_org[
+                        scratch.get_f_daily_schedule_hourly_org_index()
+                    ][1]
+                    + scratch.f_daily_schedule_hourly_org[
+                        scratch.get_f_daily_schedule_hourly_org_index() + 1
+                    ][1]
+                )
+                / 60
+            )
+
+        else:
+            end_hour = start_hour + 2
+        end_hour = int(end_hour)
+
+        dur_sum = 0
+        count = 0
+        start_index = None
+        end_index = None
+        for act, dur in scratch.f_daily_schedule:
+            if dur_sum >= start_hour * 60 and start_index == None:
+                start_index = count
+            if dur_sum >= end_hour * 60 and end_index == None:
+                end_index = count
+            dur_sum += dur
+            count += 1
+
+        ret = generate_new_decomp_schedule(
+            scratch, inserted_act, inserted_act_dur, start_hour, end_hour
         )
+        scratch.f_daily_schedule[start_index:end_index] = ret
+
+        to_return = {
+            "start_index": start_index,
+            "end_index": end_index,
+            "ret": ret,
+            "act_address": act_address,
+            "inserted_act_dur": inserted_act_dur,
+            "inserted_act": inserted_act,
+            "act_pronunciatio": act_pronunciatio,
+            "act_event": act_event,
+            "chatting_with": chatting_with,
+            "chat": chat,
+            "chatting_with_buffer": chatting_with_buffer,
+            "chatting_end_time": chatting_end_time,
+            "act_obj_description": act_obj_description,
+            "act_obj_pronunciatio": act_obj_pronunciatio,
+            "act_obj_event": act_obj_event,
+            "act_start_time": act_start_time,
+        }
+
+        return to_return
 
     else:
-        end_hour = start_hour + 2
-    end_hour = int(end_hour)
+        p = persona
 
-    dur_sum = 0
-    count = 0
-    start_index = None
-    end_index = None
-    for act, dur in p.scratch.f_daily_schedule:
-        if dur_sum >= start_hour * 60 and start_index == None:
-            start_index = count
-        if dur_sum >= end_hour * 60 and end_index == None:
-            end_index = count
-        dur_sum += dur
-        count += 1
+        min_sum = 0
+        for i in range(p.scratch.get_f_daily_schedule_hourly_org_index()):
+            min_sum += p.scratch.f_daily_schedule_hourly_org[i][1]
+        start_hour = int(min_sum / 60)
 
-    ret = generate_new_decomp_schedule(
-        p, inserted_act, inserted_act_dur, start_hour, end_hour
-    )
-    p.scratch.f_daily_schedule[start_index:end_index] = ret
-    p.scratch.add_new_action(
-        act_address,
-        inserted_act_dur,
-        inserted_act,
-        act_pronunciatio,
-        act_event,
-        chatting_with,
-        chat,
-        chatting_with_buffer,
-        chatting_end_time,
-        act_obj_description,
-        act_obj_pronunciatio,
-        act_obj_event,
-        act_start_time,
-    )
+        if (
+            p.scratch.f_daily_schedule_hourly_org[
+                p.scratch.get_f_daily_schedule_hourly_org_index()
+            ][1]
+            >= 120
+        ):
+            end_hour = (
+                start_hour
+                + p.scratch.f_daily_schedule_hourly_org[
+                    p.scratch.get_f_daily_schedule_hourly_org_index()
+                ][1]
+                / 60
+            )
+
+        elif (
+            p.scratch.f_daily_schedule_hourly_org[
+                p.scratch.get_f_daily_schedule_hourly_org_index()
+            ][1]
+            + p.scratch.f_daily_schedule_hourly_org[
+                p.scratch.get_f_daily_schedule_hourly_org_index() + 1
+            ][1]
+        ):
+            end_hour = start_hour + (
+                (
+                    p.scratch.f_daily_schedule_hourly_org[
+                        p.scratch.get_f_daily_schedule_hourly_org_index()
+                    ][1]
+                    + p.scratch.f_daily_schedule_hourly_org[
+                        p.scratch.get_f_daily_schedule_hourly_org_index() + 1
+                    ][1]
+                )
+                / 60
+            )
+
+        else:
+            end_hour = start_hour + 2
+        end_hour = int(end_hour)
+
+        dur_sum = 0
+        count = 0
+        start_index = None
+        end_index = None
+        for act, dur in p.scratch.f_daily_schedule:
+            if dur_sum >= start_hour * 60 and start_index == None:
+                start_index = count
+            if dur_sum >= end_hour * 60 and end_index == None:
+                end_index = count
+            dur_sum += dur
+            count += 1
+
+        ret = generate_new_decomp_schedule(
+            p, inserted_act, inserted_act_dur, start_hour, end_hour
+        )
+        p.scratch.f_daily_schedule[start_index:end_index] = ret
+        p.scratch.add_new_action(
+            act_address,
+            inserted_act_dur,
+            inserted_act,
+            act_pronunciatio,
+            act_event,
+            chatting_with,
+            chat,
+            chatting_with_buffer,
+            chatting_end_time,
+            act_obj_description,
+            act_obj_pronunciatio,
+            act_obj_event,
+            act_start_time,
+        )
 
 
-def _chat_react(maze, persona, focused_event, reaction_mode, personas):
-    # There are two personas -- the persona who is initiating the conversation
-    # and the persona who is the target. We get the persona instances here.
+def _chat_react(
+    persona,
+    target_persona_scratch,
+    all_utt,
+    convo_length,
+    sims_folder,
+    init_persona_name,
+):
     init_persona = persona
-    target_persona = personas[reaction_mode[9:].strip()]
-    curr_personas = [init_persona, target_persona]
-
-    # Actually creating the conversation here.
-    convo, duration_min = generate_convo(maze, init_persona, target_persona)
-    convo_summary = generate_convo_summary(init_persona, convo)
+    convo_summary = generate_convo_summary(init_persona, all_utt)
     inserted_act = convo_summary
-    inserted_act_dur = duration_min
+    inserted_act_dur = convo_length
+    act_start_time = target_persona_scratch["act_start_time"]
 
-    act_start_time = target_persona.scratch.act_start_time
+    # Assuming curr_time is a string in the format "YYYY-MM-DDTHH:MM:SS"
+    curr_time_str = target_persona_scratch["curr_time"]
+    curr_datetime = datetime.datetime.strptime(curr_time_str, "%Y-%m-%dT%H:%M:%S")
 
-    curr_time = target_persona.scratch.curr_time
-    if curr_time.second != 0:
-        temp_curr_time = curr_time + datetime.timedelta(seconds=60 - curr_time.second)
+    curr_time_str = curr_datetime.strftime("%H:%M:%S")
+    logger.info(f"curr_time_str: {curr_time_str}")
+
+    if curr_datetime.second != 0:
+        temp_curr_time = curr_datetime + datetime.timedelta(
+            seconds=60 - curr_datetime.second
+        )
         chatting_end_time = temp_curr_time + datetime.timedelta(
             minutes=inserted_act_dur
         )
     else:
-        chatting_end_time = curr_time + datetime.timedelta(minutes=inserted_act_dur)
+        chatting_end_time = curr_datetime + datetime.timedelta(minutes=inserted_act_dur)
 
-    for role, p in [("init", init_persona), ("target", target_persona)]:
+    logger.info(f"chatting_end_time: {chatting_end_time}")
+
+    for role, p in [("init", init_persona), ("target", target_persona_scratch)]:
         if role == "init":
-            act_address = f"<persona> {target_persona.name}"
-            act_event = (p.name, "chat with", target_persona.name)
-            chatting_with = target_persona.name
+            act_address = f"<persona> {target_persona_scratch['name']}"
+            act_event = (p.name, "chat with", target_persona_scratch["name"])
+            chatting_with = target_persona_scratch["name"]
             chatting_with_buffer = {}
-            chatting_with_buffer[target_persona.name] = 800
+            chatting_with_buffer[target_persona_scratch["name"]] = 800
         elif role == "target":
             act_address = f"<persona> {init_persona.name}"
-            act_event = (p.name, "chat with", init_persona.name)
+            act_event = (p["name"], "chat with", init_persona.name)
             chatting_with = init_persona.name
             chatting_with_buffer = {}
             chatting_with_buffer[init_persona.name] = 800
@@ -1055,22 +1229,62 @@ def _chat_react(maze, persona, focused_event, reaction_mode, personas):
         act_obj_pronunciatio = None
         act_obj_event = (None, None, None)
 
-        _create_react(
-            p,
-            inserted_act,
-            inserted_act_dur,
-            act_address,
-            act_event,
-            chatting_with,
-            convo,
-            chatting_with_buffer,
-            chatting_end_time,
-            act_pronunciatio,
-            act_obj_description,
-            act_obj_pronunciatio,
-            act_obj_event,
-            act_start_time,
-        )
+        if role == "init":
+            _create_react(
+                p,
+                inserted_act,
+                inserted_act_dur,
+                act_address,
+                act_event,
+                chatting_with,
+                all_utt,
+                chatting_with_buffer,
+                chatting_end_time,
+                act_pronunciatio,
+                act_obj_description,
+                act_obj_pronunciatio,
+                act_obj_event,
+                act_start_time,
+            )
+        else:
+            to_return = _create_react(
+                p,
+                inserted_act,
+                inserted_act_dur,
+                act_address,
+                act_event,
+                chatting_with,
+                all_utt,
+                chatting_with_buffer,
+                chatting_end_time,
+                act_pronunciatio,
+                act_obj_description,
+                act_obj_pronunciatio,
+                act_obj_event,
+                act_start_time,
+            )
+            # convert all datetime to string
+            to_return = {
+                k: v.strftime("%Y-%m-%dT%H:%M:%S")
+                if isinstance(v, datetime.datetime)
+                else v
+                for k, v in to_return.items()
+            }
+
+    logger.info(f"to_return: {to_return}")
+
+    logger.info(f"init_persona.a_mem: {init_persona.a_mem}")
+    init_persona.a_mem.save(
+        f"{os.getenv('BASE_OUTPUT_DIR')}/{sims_folder}/bootstrap_memory/associative_memory"
+    )
+    init_persona.scratch.save(
+        f"{os.getenv('BASE_OUTPUT_DIR')}/{sims_folder}/bootstrap_memory/scratch.json"
+    )
+    init_persona.s_mem.save(
+        f"{os.getenv('BASE_OUTPUT_DIR')}/{sims_folder}/bootstrap_memory/spatial_memory.json"
+    )
+
+    return to_return
 
 
 def _wait_react(persona, reaction_mode):
@@ -1146,7 +1360,7 @@ def plan(persona, maze, personas, new_day, retrieved):
 
     # PART 2: If the current action has expired, we want to create a new plan.
     if persona.scratch.act_check_finished():
-        _determine_action(persona, maze)
+        (persona, maze)
 
     # PART 3: If you perceived an event that needs to be responded to (saw
     # another persona), and retrieved relevant information.

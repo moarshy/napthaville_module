@@ -7,7 +7,11 @@ memory that aids in grounding their behavior in the game world.
 """
 
 import json
+import logging
 from napthaville.global_methods import check_if_file_exists
+
+
+logger = logging.getLogger(__name__)
 
 
 class MemoryTree:
@@ -90,18 +94,33 @@ class MemoryTree:
         """
         curr_world, curr_sector, curr_arena = arena.split(":")
 
+        if "Maris" in curr_arena:
+            curr_arena = curr_arena.replace("Maris", "Maria")
+
         if not curr_arena:
             return ""
+
+        logger.info(f"Tree: {self.tree}")
+        logger.info(
+            f"curr_world: {curr_world}, curr_sector: {curr_sector}, curr_arena: {curr_arena}"
+        )
 
         try:
             x = ", ".join(list(self.tree[curr_world][curr_sector][curr_arena]))
         except:
-            x = ", ".join(list(self.tree[curr_world][curr_sector][curr_arena.lower()]))
+            try:
+                x = ", ".join(
+                    list(self.tree[curr_world][curr_sector][curr_arena.lower()])
+                )
+            except:
+                x = ", ".join(
+                    list(self.tree[curr_world][curr_sector][curr_arena.strip()])
+                )
         return x
 
 
 if __name__ == "__main__":
-    x = f"../../../../environment/frontend_server/storage/the_ville_base_LinFamily/personas/Eddy Lin/bootstrap_memory/spatial_memory.json"
+    x = "../../../../environment/frontend_server/storage/the_ville_base_LinFamily/personas/Eddy Lin/bootstrap_memory/spatial_memory.json"
     x = MemoryTree(x)
     x.print_tree()
 

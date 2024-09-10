@@ -8,6 +8,7 @@ Description: Defines the short-term memory module for generative agents.
 import datetime
 import json
 from napthaville.global_methods import check_if_file_exists
+from dateutil import parser
 
 
 class Scratch:
@@ -249,7 +250,10 @@ class Scratch:
         scratch["att_bandwidth"] = self.att_bandwidth
         scratch["retention"] = self.retention
 
-        scratch["curr_time"] = self.curr_time.strftime("%B %d, %Y, %H:%M:%S")
+        try:
+            scratch["curr_time"] = self.curr_time.strftime("%B %d, %Y, %H:%M:%S")
+        except:
+            scratch["curr_time"] = None
         scratch["curr_tile"] = self.curr_tile
         scratch["daily_plan_req"] = self.daily_plan_req
 
@@ -284,7 +288,12 @@ class Scratch:
         scratch["f_daily_schedule_hourly_org"] = self.f_daily_schedule_hourly_org
 
         scratch["act_address"] = self.act_address
-        scratch["act_start_time"] = self.act_start_time.strftime("%B %d, %Y, %H:%M:%S")
+        if self.act_start_time:
+            scratch["act_start_time"] = self.act_start_time.strftime(
+                "%B %d, %Y, %H:%M:%S"
+            )
+        else:
+            scratch["act_start_time"] = None
         scratch["act_duration"] = self.act_duration
         scratch["act_description"] = self.act_description
         scratch["act_pronunciatio"] = self.act_pronunciatio
@@ -602,3 +611,20 @@ class Scratch:
 
     def to_dict(self):
         return self.__dict__
+
+    @classmethod
+    def from_dict(cls, data):
+        scratch = cls(f_saved=None)  # Create a new instance without loading from file
+
+        for key, value in data.items():
+            if key in ["curr_time", "act_start_time", "chatting_end_time"]:
+                if value:
+                    setattr(scratch, key, parser.parse(value))
+                else:
+                    setattr(scratch, key, None)
+            elif key in ["act_event", "act_obj_event"]:
+                setattr(scratch, key, tuple(value))
+            else:
+                setattr(scratch, key, value)
+
+        return scratch

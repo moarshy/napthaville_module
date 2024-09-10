@@ -9,47 +9,44 @@ agents paper.
 """
 
 import json
-import datetime
+from datetime import datetime
 
 
 class ConceptNode:
     def __init__(
         self,
-        node_id,
-        node_count,
-        type_count,
-        node_type,
-        depth,
-        created,
-        expiration,
-        s,
-        p,
-        o,
-        description,
-        embedding_key,
-        poignancy,
-        keywords,
-        filling,
+        node_id=None,
+        node_count=None,
+        type_count=None,
+        type=None,
+        depth=None,
+        created=None,
+        expiration=None,
+        s=None,
+        p=None,
+        o=None,
+        description=None,
+        embedding_key=None,
+        poignancy=None,
+        keywords=None,
+        filling=None,
     ):
         self.node_id = node_id
         self.node_count = node_count
         self.type_count = type_count
-        self.type = node_type  # thought / event / chat
+        self.type = type
         self.depth = depth
-
         self.created = created
         self.expiration = expiration
-        self.last_accessed = self.created
-
+        self.last_accessed = created
         self.subject = s
         self.predicate = p
         self.object = o
-
         self.description = description
         self.embedding_key = embedding_key
         self.poignancy = poignancy
-        self.keywords = keywords
-        self.filling = filling
+        self.keywords = set(keywords) if keywords else set()
+        self.filling = filling if filling else []
 
     def spo_summary(self):
         return (self.subject, self.predicate, self.object)
@@ -60,24 +57,52 @@ class ConceptNode:
             "node_id": self.node_id,
             "node_count": self.node_count,
             "type_count": self.type_count,
-            "type": self.type,
+            "node_type": self.type,  # Change 'type' to 'node_type'
             "depth": self.depth,
-            "created": self.created.isoformat() if isinstance(self.created, datetime) else self.created,
-            "expiration": self.expiration.isoformat() if isinstance(self.expiration, datetime) else self.expiration,
-            "last_accessed": self.last_accessed.isoformat() if isinstance(self.last_accessed, datetime) else self.last_accessed,
+            "created": self.created.isoformat()
+            if isinstance(self.created, datetime)
+            else self.created,
+            "expiration": self.expiration.isoformat()
+            if isinstance(self.expiration, datetime)
+            else self.expiration,
+            "last_accessed": self.last_accessed.isoformat()
+            if isinstance(self.last_accessed, datetime)
+            else self.last_accessed,
             "subject": self.subject,
             "predicate": self.predicate,
             "object": self.object,
             "description": self.description,
             "embedding_key": self.embedding_key,
             "poignancy": self.poignancy,
-            "keywords": self.keywords,
-            "filling": self.filling
+            "keywords": list(self.keywords),  # Convert set to list
+            "filling": self.filling,
         }
-    
+
     @classmethod
-    def from_dict(cls, dict):
-        return cls(**dict)
+    def from_dict(cls, data):
+        if not data:
+            return None
+        return cls(
+            node_id=data.get("node_id"),
+            node_count=data.get("node_count"),
+            type_count=data.get("type_count"),
+            type=data.get("node_type"),  # Note: changed from 'type' to 'node_type'
+            depth=data.get("depth"),
+            created=datetime.fromisoformat(data["created"])
+            if data.get("created")
+            else None,
+            expiration=datetime.fromisoformat(data["expiration"])
+            if data.get("expiration")
+            else None,
+            s=data.get("subject"),  # Note: changed from 's' to 'subject'
+            p=data.get("predicate"),  # Note: changed from 'p' to 'predicate'
+            o=data.get("object"),  # Note: changed from 'o' to 'object'
+            description=data.get("description"),
+            embedding_key=data.get("embedding_key"),
+            poignancy=data.get("poignancy"),
+            keywords=set(data.get("keywords", [])),
+            filling=data.get("filling", []),
+        )
 
     def to_json(self):
         """Convert the ConceptNode instance to a JSON string."""
@@ -88,7 +113,7 @@ class ConceptNode:
         """Create a ConceptNode instance from a JSON string."""
         data = json.loads(json_str)
         # Convert ISO format strings back to datetime objects if necessary
-        for date_field in ['created', 'expiration', 'last_accessed']:
+        for date_field in ["created", "expiration", "last_accessed"]:
             if isinstance(data[date_field], str):
                 data[date_field] = datetime.fromisoformat(data[date_field])
         return cls(**data)
@@ -121,12 +146,10 @@ class AssociativeMemory:
             node_type = node_details["type"]
             depth = node_details["depth"]
 
-            created = datetime.datetime.strptime(
-                node_details["created"], "%Y-%m-%d %H:%M:%S"
-            )
+            created = datetime.strptime(node_details["created"], "%Y-%m-%d %H:%M:%S")
             expiration = None
             if node_details["expiration"]:
-                expiration = datetime.datetime.strptime(
+                expiration = datetime.strptime(
                     node_details["expiration"], "%Y-%m-%d %H:%M:%S"
                 )
 

@@ -8,7 +8,6 @@ world in a 2-dimensional matrix.
 
 import json
 import math
-from pathlib import Path
 from napthaville.global_methods import read_file_to_list
 
 
@@ -402,7 +401,9 @@ class Maze:
                         "game_object": tile["game_object"],
                         "spawning_location": tile["spawning_location"],
                         "collision": tile["collision"],
-                        "events": list(tile["events"])  # Convert set to list for JSON serialization
+                        "events": list(
+                            tile["events"]
+                        ),  # Convert set to list for JSON serialization
                     }
                     for tile in row
                 ]
@@ -411,21 +412,21 @@ class Maze:
             "address_tiles": {
                 key: list(value)  # Convert set to list for JSON serialization
                 for key, value in self.address_tiles.items()
-            }
+            },
         }
         return json.dumps(serialized_data)
-    
+
     @classmethod
     def from_json(cls, json_string, maze_folder):
         data = json.loads(json_string)
         maze = cls(data["maze_name"], maze_folder)
-        
+
         maze.maze_width = data["maze_width"]
         maze.maze_height = data["maze_height"]
         maze.sq_tile_size = data["sq_tile_size"]
         maze.special_constraint = data["special_constraint"]
         maze.collision_maze = data["collision_maze"]
-        
+
         maze.tiles = [
             [
                 {
@@ -435,16 +436,18 @@ class Maze:
                     "game_object": tile["game_object"],
                     "spawning_location": tile["spawning_location"],
                     "collision": tile["collision"],
-                    "events": set(tuple(event) for event in tile["events"])  # Convert list back to set
+                    "events": set(
+                        tuple(event) for event in tile["events"]
+                    ),  # Convert list back to set
                 }
                 for tile in row
             ]
             for row in data["tiles"]
         ]
-        
+
         maze.address_tiles = {
             key: set(tuple(coord) for coord in value)  # Convert list back to set
             for key, value in data["address_tiles"].items()
         }
-        
+
         return maze

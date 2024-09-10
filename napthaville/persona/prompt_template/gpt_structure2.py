@@ -7,7 +7,11 @@ Description: Wrapper functions for calling OpenAI APIs.
 
 import json
 import time
+import logging
 from openai import OpenAI
+
+
+logger = logging.getLogger(__name__)
 
 
 client = OpenAI()
@@ -21,8 +25,7 @@ def ChatGPT_single_request(prompt):
     temp_sleep()
 
     completion = client.chat.completions.create(
-        model="gpt-3.5-turbo",
-        messages=[{"role": "user", "content": prompt}]
+        model="gpt-3.5-turbo", messages=[{"role": "user", "content": prompt}]
     )
     return completion.choices[0].message.content
 
@@ -48,15 +51,14 @@ def GPT4_request(prompt):
 
     try:
         completion = client.chat.completions.create(
-            model="gpt-4",
-            messages=[{"role": "user", "content": prompt}]
+            model="gpt-4", messages=[{"role": "user", "content": prompt}]
         )
         return completion.choices[0].message.content
 
     except:
         print("ChatGPT ERROR")
         return "ChatGPT ERROR"
-    
+
 
 def ChatGPT_request(prompt):
     """
@@ -74,15 +76,15 @@ def ChatGPT_request(prompt):
 
     try:
         completion = client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=[{"role": "user", "content": prompt}]
+            model="gpt-3.5-turbo", messages=[{"role": "user", "content": prompt}]
         )
         return completion.choices[0].message.content
 
     except:
         print("ChatGPT ERROR")
+        logger.error("ChatGPT ERROR")
         return "ChatGPT ERROR"
-    
+
 
 def GPT4_safe_generate_response(
     prompt,
@@ -215,15 +217,13 @@ def GPT_request(prompt, gpt_parameter):
     temp_sleep()
     try:
         completion = client.completions.create(
-            engine="text-davinci-003",
-            prompt=prompt,
-            **gpt_parameter
+            engine="text-davinci-003", prompt=prompt, **gpt_parameter
         )
         return completion.choices[0].text
     except:
         print("TOKEN LIMIT EXCEEDED")
         return "TOKEN LIMIT EXCEEDED"
-    
+
 
 def generate_prompt(curr_input, prompt_lib_file):
     """
@@ -252,6 +252,31 @@ def generate_prompt(curr_input, prompt_lib_file):
         prompt = prompt.split("<commentblockmarker>###</commentblockmarker>")[1]
     return prompt.strip()
 
+
+# def safe_generate_response(
+#     prompt,
+#     gpt_parameter,
+#     repeat=5,
+#     fail_safe_response="error",
+#     func_validate=None,
+#     func_clean_up=None,
+#     verbose=False,
+# ):
+#     if verbose:
+#         print(prompt)
+
+#     for i in range(repeat):
+#         curr_gpt_response = ChatGPT_request(prompt)
+#         print(f"curr_gpt_response: {curr_gpt_response}")
+#         if func_validate(curr_gpt_response, prompt=prompt):
+#             return func_clean_up(curr_gpt_response, prompt=prompt)
+#         if verbose:
+#             print("---- repeat count: ", i, curr_gpt_response)
+#             print(curr_gpt_response)
+#             print("~~~~")
+#     return fail_safe_response
+
+
 def safe_generate_response(
     prompt,
     gpt_parameter,
@@ -265,14 +290,18 @@ def safe_generate_response(
         print(prompt)
 
     for i in range(repeat):
-        curr_gpt_response = ChatGPT_request(prompt)
-        print(f"curr_gpt_response: {curr_gpt_response}")
-        if func_validate(curr_gpt_response, prompt=prompt):
-            return func_clean_up(curr_gpt_response, prompt=prompt)
-        if verbose:
-            print("---- repeat count: ", i, curr_gpt_response)
-            print(curr_gpt_response)
-            print("~~~~")
+        try:
+            curr_gpt_response = ChatGPT_request(prompt)
+            if func_validate(curr_gpt_response, prompt=prompt):
+                return func_clean_up(curr_gpt_response, prompt=prompt)
+            if verbose:
+                print("---- repeat count: ", i, curr_gpt_response)
+                print(curr_gpt_response)
+                print("~~~~")
+        except Exception as e:
+            if verbose:
+                print(f"Error occurred: {str(e)}")
+                print("Retrying...")
     return fail_safe_response
 
 

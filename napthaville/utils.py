@@ -7,7 +7,7 @@ class DateTimeEncoder(json.JSONEncoder):
         if isinstance(obj, datetime.datetime):
             return obj.isoformat()
         return super().default(obj)
-    
+
 
 def scratch_to_dict(scratch):
     print(scratch)
@@ -45,7 +45,9 @@ def scratch_to_dict(scratch):
         "f_daily_schedule": scratch.f_daily_schedule,
         "f_daily_schedule_hourly_org": scratch.f_daily_schedule_hourly_org,
         "act_address": scratch.act_address,
-        "act_start_time": scratch.act_start_time.isoformat() if scratch.act_start_time else None,
+        "act_start_time": scratch.act_start_time.isoformat()
+        if scratch.act_start_time
+        else None,
         "act_duration": scratch.act_duration,
         "act_description": scratch.act_description,
         "act_pronunciatio": scratch.act_pronunciatio,
@@ -56,28 +58,35 @@ def scratch_to_dict(scratch):
         "chatting_with": scratch.chatting_with,
         "chat": scratch.chat,
         "chatting_with_buffer": scratch.chatting_with_buffer,
-        "chatting_end_time": scratch.chatting_end_time.isoformat() if scratch.chatting_end_time else None,
+        "chatting_end_time": scratch.chatting_end_time.isoformat()
+        if scratch.chatting_end_time
+        else None,
         "act_path_set": scratch.act_path_set,
-        "planned_path": scratch.planned_path
+        "planned_path": scratch.planned_path,
     }
     return scratch_dict
 
+
 def dict_to_scratch(scratch_dict):
     restored_dict = scratch_dict.copy()
-    
+
     # Convert datetime strings back to datetime objects
-    datetime_fields = ['curr_time', 'act_start_time', 'chatting_end_time']
+    datetime_fields = ["curr_time", "act_start_time", "chatting_end_time"]
     for field in datetime_fields:
         if field in restored_dict and isinstance(restored_dict[field], str):
             try:
-                restored_dict[field] = datetime.datetime.fromisoformat(restored_dict[field])
+                restored_dict[field] = datetime.datetime.fromisoformat(
+                    restored_dict[field]
+                )
             except ValueError:
-                print(f"Warning: Could not convert {field} to datetime. Keeping original value.")
-    
+                print(
+                    f"Warning: Could not convert {field} to datetime. Keeping original value."
+                )
+
     # Convert lists back to tuples for event attributes
-    tuple_fields = ['act_event', 'act_obj_event']
+    tuple_fields = ["act_event", "act_obj_event"]
     for field in tuple_fields:
         if field in restored_dict and isinstance(restored_dict[field], list):
             restored_dict[field] = tuple(restored_dict[field])
-    
+
     return restored_dict

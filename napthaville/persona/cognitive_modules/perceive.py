@@ -49,8 +49,7 @@ def perceive(persona, maze):
     # We get the nearby tiles given our current tile and the persona's vision
     # radius.
     nearby_tiles = maze.get_nearby_tiles(
-        persona.scratch.curr_tile, 
-        persona.scratch.vision_r
+        persona.scratch.curr_tile, persona.scratch.vision_r
     )
 
     # We then store the perceived space. Note that the s_mem of the persona is

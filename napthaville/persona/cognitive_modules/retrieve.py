@@ -8,7 +8,6 @@ Description: This defines the "Retrieve" module for generative agents.
 from numpy import dot
 from numpy.linalg import norm
 from napthaville.persona.prompt_template.gpt_structure2 import get_embedding
-from napthaville.persona.memory_structures.associative_memory import ConceptNode
 
 
 def retrieve(persona, perceived):
@@ -31,24 +30,23 @@ def retrieve(persona, perceived):
     retrieved = dict()
     for event in perceived:
         retrieved[event.description] = dict()
-        retrieved[event.description]["curr_event"] = event
+        retrieved[event.description]["curr_event"] = event.to_dict()
 
         relevant_events = persona.a_mem.retrieve_relevant_events(
             event.subject, event.predicate, event.object
         )
-        # convert the set to a list
-        relevant_events = list(relevant_events)
-        relevant_events = [i.to_dict() for i in relevant_events if isinstance(i, ConceptNode)]
+        # Convert set of ConceptNodes to list of dicts
+        relevant_events = [node.to_dict() for node in list(relevant_events)]
 
-        retrieved[event.description]["events"] = list(relevant_events)
+        retrieved[event.description]["events"] = relevant_events
 
         relevant_thoughts = persona.a_mem.retrieve_relevant_thoughts(
             event.subject, event.predicate, event.object
         )
-        relevant_thoughts = list(relevant_thoughts)
-        relevant_thoughts = [i.to_dict() for i in relevant_thoughts if isinstance(i, ConceptNode)]
-        
-        retrieved[event.description]["thoughts"] = list(relevant_thoughts)
+        # Convert set of ConceptNodes to list of dicts
+        relevant_thoughts = [node.to_dict() for node in list(relevant_thoughts)]
+
+        retrieved[event.description]["thoughts"] = relevant_thoughts
 
     return retrieved
 
